@@ -1,0 +1,1 @@
+A simple plugin 'framework' to display variables on signs based on keys.
