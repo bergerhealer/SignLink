@@ -1,0 +1,66 @@
+name: SignLink
+main: com.bergerkiller.bukkit.sl.SignLink
+version: 1.40
+author: [Friwi, bergerkiller, lenis0012, timstans]
+metrics: true
+depend: [BKCommonLib]
+description: Plugin that manages the display of variables on signs in various ways
+commands:
+    togglesignupdate:
+        description: Turns sign updating on or off
+        usage: /togglesignsupdate
+    reloadsignlink:
+        description: Reloads the variable values in values.yml
+        usage: /reloadsignlink
+    variable:
+        description: Handles SignLink variables
+        usage: |
+            /variable list - Lists all variables
+            /variable deleteall - Deletes all variables
+            /variable deleteunused - Deletes all unused variables
+            /variable edit - Edit a variable
+            /variable forplayers - Edits the variable for given players
+            /variable set - Set variable value
+            /variable get - Gets variable value
+            /variable setticker - Sets a text anim. ticker
+            /variable delete - Deletes this variable (if unused)
+        aliases: [var]
+    variable list:
+        description: Lists all variables you can edit
+        usage: /variable list
+    variable deleteall:
+        description: Deletes all variables
+        usage: /variable delete
+    variable deleteunused:
+        description: Deletes all unused (not on sign) variables
+        usage: /variable deleteunused
+    variable edit:
+        description: Changes the variable you are editing
+        usage: /variable edit [varname]
+        aliases: [variable add]
+    variable forplayers:
+        description: |
+            Changes for which players the variable is edited
+            Only the set players will see the changes you do on the variable
+        usage: |
+            /variable forplayers [p1] [p...] - For the players specified
+            /variable forplayers - Defaults back to all players
+        aliases: [variable for]
+    variable set:
+        description: Sets the currently editing variable's value
+        usage: /variable set [value]
+    variable get:
+        description: Gets the currently editing variable's value
+        usage: /variable get
+    variable setticker:
+        description: Sets a ticker mode for a variable to animate the text
+        usage: |
+            /variable setticker [left/right/none] [interval]
+            /variable setticker [interval] [left/right/none]
+            /variable setticker [left/right/none]
+            /variable setticker [interval]
+    variable delete:
+        description: Deletes the variable if it is not used
+        usage: |
+            /variable delete - Deletes it if not used
+            /variable delete force - Deletes it even if used
