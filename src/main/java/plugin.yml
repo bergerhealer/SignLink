@@ -1,10 +1,11 @@
 name: SignLink
 main: com.bergerkiller.bukkit.sl.SignLink
-version: 1.40
-author: [Friwi, bergerkiller, lenis0012, timstans]
+version: ${project.version}
+authors: [bergerkiller, lenis0012, timstans, bubba1234119, KamikazePlatypus, mg_1999, Friwi]
 metrics: true
 depend: [BKCommonLib]
 description: Plugin that manages the display of variables on signs in various ways
+dev-url: ${project.url}
 commands:
     togglesignupdate:
         description: Turns sign updating on or off
