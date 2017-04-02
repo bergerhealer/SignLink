@@ -13,10 +13,15 @@ import org.bukkit.entity.Player;
 
 import com.bergerkiller.bukkit.common.BlockLocation;
 import com.bergerkiller.bukkit.common.ToggledState;
+import com.bergerkiller.bukkit.common.conversion.Conversion;
+import com.bergerkiller.bukkit.common.nbt.CommonTagCompound;
+import com.bergerkiller.bukkit.common.protocol.CommonPacket;
+import com.bergerkiller.bukkit.common.protocol.PacketType;
 import com.bergerkiller.bukkit.common.utils.BlockUtil;
 import com.bergerkiller.bukkit.common.utils.EntityUtil;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.bergerkiller.bukkit.common.utils.MaterialUtil;
+import com.bergerkiller.bukkit.common.utils.PacketUtil;
 import com.bergerkiller.bukkit.common.utils.PlayerUtil;
 import com.bergerkiller.bukkit.common.utils.WorldUtil;
 import com.bergerkiller.bukkit.sl.API.Variables;
@@ -118,10 +123,15 @@ public class VirtualSign extends VirtualSignStore {
 			getLines().set(index, value);
 		} else {
 			for (String player : players) {
-				getLines(player).set(index, value);
-				getLines(player).updateSign(Bukkit.getPlayer(player), location.x, location.y, location.z);
+			    VirtualLines lines = getLines(player);
+			    lines.set(index, value);
+				this.sendLines(lines, Bukkit.getPlayer(player));
 			}
 		}
+	}
+
+	public void restoreRealLine(int line) {
+	    setLine(line, getRealLine(line));
 	}
 
 	public String getLine(int index) {
@@ -186,6 +196,42 @@ public class VirtualSign extends VirtualSignStore {
 
 	public boolean isLoaded() {
 		return this.loaded.get();
+	}
+
+	/**
+	 * Updates the sign contents to the update packet belonging to this sign
+	 * 
+	 * @param viewer of this sign
+	 * @param updatePacket for this sign
+	 */
+	public void applyToPacket(Player viewer, CommonPacket updatePacket) {
+        applyToPacket(getLines(viewer), updatePacket);
+	}
+
+    /**
+     * Updates the sign contents to the update packet belonging to this sign
+     * 
+     * @param virtual line information to apply
+     * @param updatePacket for this sign
+     */
+	public void applyToPacket(VirtualLines lines, CommonPacket updatePacket) {
+        if (updatePacket.getType() != PacketType.OUT_TILE_ENTITY_DATA) return;
+
+        CommonTagCompound compound = updatePacket.read(PacketType.OUT_TILE_ENTITY_DATA.data);
+        // ====================================================================
+
+        for (int i = 0; i < VirtualLines.LINE_COUNT; i++) {
+            //String old_text = compound.getValue(key, "");
+            //System.out.println("Ln[" + i + "] = " + old_text);
+            //System.out.println("Tn[" + i + "] = " + Conversion.chatJsonToText.convert(old_text));
+
+            String key = "Text" + (i+1);
+            String text = Conversion.chatTextToJson.convert(lines.get(i));
+            compound.putValue(key, text);
+        }
+
+        // ====================================================================
+        updatePacket.write(PacketType.OUT_TILE_ENTITY_DATA.data, compound);
 	}
 
 	/**
@@ -306,6 +352,16 @@ public class VirtualSign extends VirtualSignStore {
 	}
 
 	public void sendLines(VirtualLines lines, Player player) {
-		lines.updateSign(player, getX(), getY(), getZ());
+        if (SignLink.updateSigns && player != null) {
+            CommonPacket updatePacket = BlockUtil.getUpdatePacket(sign);
+            if (updatePacket != null) {
+                applyToPacket(lines, updatePacket);
+
+                SLListener.ignore = true;
+                PacketUtil.sendPacket(player, updatePacket);
+                SLListener.ignore = false;
+            }
+        }
 	}
+
 }

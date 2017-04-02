@@ -3,8 +3,10 @@ package com.bergerkiller.bukkit.sl;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedList;
 
-import org.bukkit.ChatColor;
+import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 
@@ -13,7 +15,6 @@ import com.bergerkiller.bukkit.common.ToggledState;
 import com.bergerkiller.bukkit.common.utils.BlockUtil;
 import com.bergerkiller.bukkit.common.utils.FaceUtil;
 import com.bergerkiller.bukkit.common.utils.MaterialUtil;
-import com.bergerkiller.bukkit.common.utils.StringUtil;
 
 /**
  * Links multiple (Virtual) Signs together to create a single, long, horizontal line of text which can be altered
@@ -71,6 +72,134 @@ public class LinkedSign {
 		return this.oldtext;
 	}
 
+	public void setText(String value, boolean wrapAround, String... forplayers) {
+        oldtext = value;
+        if (!SignLink.updateSigns) {
+            return; 
+        }
+        final ArrayList<VirtualSign> signs = getSigns();
+        if (signs.isEmpty()) {
+            return;
+        }
+        for (VirtualSign sign : signs) {
+            if (!sign.isLoaded()) {
+                return;
+            }
+        }
+
+        // Convert text to a list of styled character tokens
+        LinkedList<StyledCharacter> characters = StyledCharacter.getChars(value);
+
+        // If all empty, simply set all signs to an empty string
+        // Prevents odd infinite loops trying to pad the signs with wrap-around
+        if (characters.isEmpty()) {
+            for (VirtualSign sign : signs) {
+                sign.setLine(this.line, "", forplayers);
+            }
+            return;
+        }
+
+        // Fill the entire width of the signs with characters to make sure padding is correct
+        // When wrapping around, it is filled with characters from the beginning, looping
+        // When not wrapping around, we add spaces to the left, right, or alternating depending on sign direction
+        int remainingSigns = signs.size();
+        if (wrapAround) {
+            // Add all current characters to the signs
+            int width = 0;
+            for (StyledCharacter character : characters) {
+                width += character.width;
+                if (width > VirtualLines.LINE_WIDTH_LIMIT) {
+                    width = character.width;
+                    remainingSigns--;
+                    if (remainingSigns == 0) {
+                        width -= character.width;
+                        break;
+                    }
+                }
+            }
+
+            // Fill remaining space by wrapping around the characters
+            if (remainingSigns > 0) {
+                ArrayList<StyledCharacter> wrappedChars = new ArrayList<StyledCharacter>(characters);
+                int wrappedCharIdx = 0;
+                while (true) {
+                    if (wrappedCharIdx == wrappedChars.size()) {
+                        wrappedCharIdx = 0;
+                    }
+                    StyledCharacter sc = wrappedChars.get(wrappedCharIdx++);
+                    width += sc.width;
+                    if (width > VirtualLines.LINE_WIDTH_LIMIT) {
+                        width = sc.width;
+                        if (--remainingSigns == 0) {
+                            break;
+                        }
+                    }
+                    characters.addLast(sc);
+                }
+            }
+
+        } else if (signs.size() > 1 || direction != SignDirection.NONE) {
+            // Add spaces left and/or right of the characters array until we run out
+            StyledCharacter space_first = characters.getFirst().asSpace();
+            StyledCharacter space_last = characters.getLast().asSpace();
+            SignDirection space_dir = this.direction;
+            boolean alternator = false;
+            while (true) {
+                if (this.direction == SignDirection.NONE) {
+                    alternator = !alternator;
+                    space_dir = alternator ? SignDirection.LEFT : SignDirection.RIGHT;
+                }
+                if (space_dir == SignDirection.LEFT) {
+                    characters.addFirst(space_first);
+                    if (StyledCharacter.getSignCount(characters) > signs.size()) {
+                        characters.removeFirst();
+                        break;
+                    }
+                } else {
+                    characters.addLast(space_last);
+                    if (StyledCharacter.getSignCount(characters) > signs.size()) {
+                        characters.removeLast();
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Next, add characters to the sign lines until we run out of space on the sign, then reset and move on
+        Iterator<VirtualSign> signIter = signs.iterator();
+        VirtualSign currentSign = signIter.next();
+        LinkedList<StyledCharacter> currentSignStyledLine = new LinkedList<StyledCharacter>();
+        int currentLineWidth = 0;
+        for (StyledCharacter sc : characters) {
+            // Try to add the character width to the next sign until it is full
+            currentLineWidth += sc.width;
+            if (currentLineWidth > VirtualLines.LINE_WIDTH_LIMIT) {
+                // Limit exceeded, this sign can not add this new character
+                // Reset the width to only include the new character
+                currentLineWidth = sc.width;
+
+                // Compile all styled characters found thus far into a single String-formatted line
+                currentSign.setLine(this.line, StyledCharacter.getText(currentSignStyledLine), forplayers);
+                currentSignStyledLine.clear();
+                if (signIter.hasNext()) {
+                    currentSign = signIter.next();
+                } else {
+                    currentSign = null;
+                    break; // done! No more sign space.
+                }
+            }
+
+            // Add the new character
+            currentSignStyledLine.addLast(sc);
+        }
+        if (currentSignStyledLine.size() > 0 && currentSign != null) {
+            currentSign.setLine(this.line, StyledCharacter.getText(currentSignStyledLine), forplayers);
+        }
+    }
+	
+	// This is the old 'setText' function that assumes a maximum amount of characters of the text
+	// It is here for legacy support purposes, but it is no longer used
+	/*
 	public void setText(String value, boolean wrapAround, String... forplayers) {
 		oldtext = value;
 		if (!SignLink.updateSigns) {
@@ -245,6 +374,7 @@ public class LinkedSign {
 			}
 		}
 	}
+	*/
 
 	/**
 	 * Gets the starting Block, the first sign block this Linked Sign shows text on
@@ -284,28 +414,33 @@ public class LinkedSign {
 	}
 
 	private Block nextSign(Block from) {
-		BlockFace direction = FaceUtil.rotate(BlockUtil.getFacing(from), 2);
-		if (this.direction == SignDirection.RIGHT) {
-			direction = direction.getOppositeFace();
-		}
-		Block next = from.getRelative(direction);
-		Block rval = next;
-		if (!MaterialUtil.ISSIGN.get(next)) {
-			rval = null;
-			//Jumping a gap?
-			for (BlockFace f : FaceUtil.ATTACHEDFACESDOWN) {
-				Block next2 = next.getRelative(f);
-				if (MaterialUtil.ISSIGN.get(next2)) {
-					next = next2;
-					rval = next;
-					break;
-				}
-			}
-		}
-		if (rval == null || !loopCheck.add(rval))  {
-			return null;
-		}
-		return rval;
+	    // Check if there is a sign to the left/right of the current one (direction)
+	    BlockFace from_facing = BlockUtil.getFacing(from);
+        BlockFace direction = FaceUtil.rotate(from_facing, 2);
+        if (this.direction == SignDirection.RIGHT) {
+            direction = direction.getOppositeFace();
+        }
+        Block next = from.getRelative(direction);
+        if (MaterialUtil.ISSIGN.get(next) && BlockUtil.getFacing(next) == from_facing &&  loopCheck.add(next)) {
+            return next;
+        }
+
+        // Check if there is another wall sign attached to the same block as the current one
+        if (from.getType() == Material.WALL_SIGN) {
+            BlockFace attachedSide = BlockUtil.getAttachedFace(from);
+            Block attachedBlock = from.getRelative(attachedSide);
+            BlockFace cornerDir;
+            if (this.direction == SignDirection.RIGHT) {
+                cornerDir = FaceUtil.rotate(attachedSide, 2);
+            } else {
+                cornerDir = FaceUtil.rotate(attachedSide, -2);
+            }
+            next = attachedBlock.getRelative(cornerDir);
+            if (next.getType() == Material.WALL_SIGN && BlockUtil.getAttachedFace(next) == cornerDir.getOppositeFace() && loopCheck.add(next)) {
+                return next;
+            }
+        }
+        return null;
 	}
 
 	/**
@@ -321,6 +456,9 @@ public class LinkedSign {
 		Block start = getStartBlock();
 		//Unloaded chunk?
 		if (start == null) {
+		    for (VirtualSign sign : this.displaySigns) {
+		        sign.restoreRealLine(this.line);
+		    }
 			this.displaySigns.clear();
 			return this.displaySigns;
 		}
@@ -330,9 +468,12 @@ public class LinkedSign {
 		}
 
 		//Regenerate old signs and return
+		ArrayList<VirtualSign> signsRemoved = new ArrayList<VirtualSign>(this.displaySigns);
 		this.displaySigns.clear();
 		if (MaterialUtil.ISSIGN.get(start)) {
-			this.displaySigns.add(VirtualSign.getOrCreate(start));
+		    VirtualSign startSign = VirtualSign.getOrCreate(start);
+			this.displaySigns.add(startSign);
+			signsRemoved.remove(startSign);
 			if (this.direction == SignDirection.NONE) {
 				return displaySigns;
 			}
@@ -361,13 +502,18 @@ public class LinkedSign {
 						if (realline.charAt(index + 1) != ' ') break;
 					}
 					this.displaySigns.add(sign);
+					signsRemoved.remove(sign);
 					break;
 				}
 				this.displaySigns.add(sign);
+				signsRemoved.remove(sign);
 			}
 			if (this.direction == SignDirection.LEFT) {
 				Collections.reverse(this.displaySigns);
 			}
+		}
+		for (VirtualSign sign : signsRemoved) {
+		    sign.restoreRealLine(this.line);
 		}
 		return this.displaySigns;
 	}

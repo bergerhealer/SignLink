@@ -9,6 +9,7 @@ import org.bukkit.entity.Player;
 
 import com.bergerkiller.bukkit.common.BlockLocation;
 import com.bergerkiller.bukkit.common.Task;
+import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.collections.BlockMap;
 import com.bergerkiller.bukkit.common.utils.MaterialUtil;
 import com.bergerkiller.bukkit.sl.API.Variable;
@@ -48,6 +49,10 @@ public class VirtualSignStore {
 		return get(at.getBlock());
 	}
 
+	public static synchronized VirtualSign get(World world, IntVector3 position) {
+	    return virtualSigns == null ? null : virtualSigns.get(world, position);
+	}
+	
 	public static synchronized VirtualSign get(Block b) {
 		return virtualSigns == null ? null : virtualSigns.get(b);
 	}
@@ -95,7 +100,7 @@ public class VirtualSignStore {
 	}
 
 	/**
-	 * Removes a Vitual Sign from the storage.
+	 * Removes a Virtual Sign from the storage.
 	 * 
 	 * @param signBlock to remove
 	 * @return True if a Virtual Sign was removed, False if not

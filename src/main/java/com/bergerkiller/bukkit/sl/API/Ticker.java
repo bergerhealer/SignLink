@@ -1,13 +1,13 @@
 package com.bergerkiller.bukkit.sl.API;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
-
-import org.bukkit.ChatColor;
 
 import com.bergerkiller.bukkit.common.ToggledState;
 import com.bergerkiller.bukkit.common.config.ConfigurationNode;
 import com.bergerkiller.bukkit.common.utils.StringUtil;
+import com.bergerkiller.bukkit.sl.StyledCharacter;
 
 /**
  * Ticks text on a per-tick basis to allow textual animations
@@ -16,7 +16,7 @@ public class Ticker {
 	//These two are used to check if it is updated
 	protected String[] players = null;
 	protected ToggledState checked = new ToggledState();
-	private TickedChar[] valueElements;
+	private LinkedList<StyledCharacter> valueElements;
 	private String value = "";
 	private ArrayList<Pause> pauses = new ArrayList<Pause>();
 	private int pauseindex = 0;
@@ -35,7 +35,7 @@ public class Ticker {
 
 	public Ticker(String initialvalue) {
 		this.value = initialvalue;
-		this.valueElements = TickedChar.getChars(initialvalue);
+		this.valueElements = StyledCharacter.getChars(initialvalue);
 	}
 
 	/**
@@ -152,7 +152,7 @@ public class Ticker {
  	public void reset(String value) {
  		this.pauseindex = 0;
  		this.counter = 0;
- 		this.valueElements = TickedChar.getChars(value);
+ 		this.valueElements = StyledCharacter.getChars(value);
  		this.value = value;
  		for (Pause p : this.pauses) {
  			p.currentdelay = 0;
@@ -187,7 +187,7 @@ public class Ticker {
 			}
 		}
 		// Now we go with 'on' - show text
-		this.value = TickedChar.getText(this.valueElements);
+		this.value = StyledCharacter.getText(this.valueElements);
 		return this.value;
 	}
 
@@ -198,14 +198,11 @@ public class Ticker {
 	 */
 	public String left() {
 		// Translate elements one to the left
-		if (this.valueElements.length >= 2) {
-			TickedChar first = this.valueElements[0];
-			for (int i = 1; i < this.valueElements.length; i++) {
-				this.valueElements[i - 1] = this.valueElements[i];
-			}
-			this.valueElements[this.valueElements.length - 1] = first;
+		if (this.valueElements.size() >= 2) {
+			StyledCharacter first = this.valueElements.removeFirst();
+			this.valueElements.addLast(first);
 			// Update
-			this.value = TickedChar.getText(this.valueElements);
+			this.value = StyledCharacter.getText(this.valueElements);
 		}
 		return this.value;
 	}
@@ -217,14 +214,11 @@ public class Ticker {
 	 */
 	public String right() {
 		// Translate elements one to the right
-		if (this.valueElements.length >= 2) {
-			TickedChar last = this.valueElements[this.valueElements.length - 1];
-			for (int i = this.valueElements.length - 1; i >= 1; i--) {
-				this.valueElements[i] = this.valueElements[i - 1];
-			}
-			this.valueElements[0] = last;
+		if (this.valueElements.size() >= 2) {
+		    StyledCharacter last = this.valueElements.removeLast();
+			this.valueElements.addFirst(last);
 			// Update
-			this.value = TickedChar.getText(this.valueElements);
+			this.value = StyledCharacter.getText(this.valueElements);
 		}
 		return this.value;
 	}
@@ -315,57 +309,4 @@ public class Ticker {
 		}
 	}
 
-	/**
-	 * Represents a single ticked character in the ticker text
-	 */
-	private static class TickedChar {
-		public final char character;
-		public final ChatColor color;
-
-		public TickedChar(char character, ChatColor color) {
-			this.character = character;
-			this.color = color;
-		}
-
-		public static String getText(TickedChar[] characters) {
-			StringBuilder text = new StringBuilder(characters.length + 20);
-			ChatColor currentColor = null;
-			for (TickedChar c : characters) {
-				if (c.color != currentColor && c.color != null) {
-					currentColor = c.color;
-					text.append(c.color);
-				}
-				text.append(c.character);
-			}
-			return text.toString();
-		}
-
-		public static TickedChar[] getChars(String text) {
-			ChatColor currentColor = null;
-			ArrayList<TickedChar> rval = new ArrayList<TickedChar>(text.length());
-			for (int i = 0; i < text.length(); i++) {
-				char c = text.charAt(i);
-				// Update coloring
-				if (c == StringUtil.CHAT_STYLE_CHAR) {
-					if (i < text.length() - 1) {
-						i++;
-						currentColor = StringUtil.getColor(text.charAt(i), currentColor);
-					}
-					continue;
-				}
-				// New character
-				rval.add(new TickedChar(c, currentColor));
-			}
-			if (currentColor != null) {
-				// Make sure to turn all others into Black
-				for (int i = 0; i < rval.size(); i++) {
-					TickedChar tc = rval.get(i);
-					if (tc.color == null) {
-						rval.set(i, new TickedChar(tc.character, ChatColor.BLACK));
-					}
-				}
-			}
-			return rval.toArray(new TickedChar[0]);
-		}
-	}
 }

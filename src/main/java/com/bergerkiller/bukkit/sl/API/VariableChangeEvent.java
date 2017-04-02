@@ -21,7 +21,7 @@ public class VariableChangeEvent extends Event implements Cancellable {
 		this.players = players;
 		this.type = type;
 	}
-	
+
 	public String getNewValue() {
 		return this.newvalue;
 	}

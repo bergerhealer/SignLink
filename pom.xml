@@ -5,7 +5,7 @@
 
   <groupId>com.bergerkiller.bukkit</groupId>
   <artifactId>SignLink</artifactId>
-  <version>1.35-SNAPSHOT</version>
+  <version>1.8-SNAPSHOT</version>
   <packaging>jar</packaging>
 
   <name>SignLink</name>
@@ -33,23 +33,15 @@
   </repositories>
 
   <dependencies>
-    <dependency>
-      <groupId>org.bukkit</groupId>
-      <artifactId>bukkit</artifactId>
-      <version>1.8.7-R0.1-SNAPSHOT</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.bukkit</groupId>
-      <artifactId>craftbukkit</artifactId>
-      <version>1.8.7-R0.1-SNAPSHOT</version>
-      <scope>system</scope>
-      <systemPath>${project.basedir}/lib/spigot.jar</systemPath>
-    </dependency>
+        <dependency>
+            <groupId>org.spigotmc</groupId>
+            <artifactId>spigot-api</artifactId>
+            <version>1.11.2-R0.1-SNAPSHOT</version>
+        </dependency>
     <dependency>
       <groupId>com.bergerkiller.bukkit</groupId>
       <artifactId>BKCommonLib</artifactId>
-      <version>1.62-SNAPSHOT</version>
+      <version>1.8-SNAPSHOT</version>
       <scope>provided</scope>
   	</dependency>
     <dependency>

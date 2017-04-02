@@ -1,13 +1,8 @@
 package com.bergerkiller.bukkit.sl;
 
-import org.bukkit.Location;
-import org.bukkit.entity.Player;
-
-import com.bergerkiller.bukkit.common.protocol.PacketType;
-import com.bergerkiller.bukkit.common.utils.PacketUtil;
-
 public class VirtualLines {
-	public static final int MAX_LINE_LENGTH = 15;
+	//public static final int MAX_LINE_LENGTH = 15; /* Legacy no longer applies */
+    public static final int LINE_WIDTH_LIMIT = 90;
 	public static final int LINE_COUNT = 4;
 	private String[] lines = new String[LINE_COUNT];
 	private boolean changed = false;
@@ -22,9 +17,6 @@ public class VirtualLines {
 	}
 
 	public void set(int index, String value) {
-		if (value.length() > MAX_LINE_LENGTH) {
-			value = value.substring(0, MAX_LINE_LENGTH);
-		}
 		if (!this.lines[index].equals(value)) {
 			this.changed = true;
 			this.lines[index] = value;
@@ -51,11 +43,8 @@ public class VirtualLines {
 		this.changed = changed;
 	}
 
-	public void updateSign(Player player, int x, int y, int z) {
-		if (SignLink.updateSigns && player != null) {
-			SLListener.ignore = true;
-			PacketUtil.sendPacket(player, PacketType.OUT_UPDATE_SIGN.newInstance(new Location(player.getLocation().getWorld(), x, y, z).getBlock(), LineConverter.convert(this.lines)));
-			SLListener.ignore = false;
-		}
+	@Override
+	public String toString() {
+	    return "{" + lines[0] + " " + lines[1] + " " + lines[2] + " " + lines[3] + "}";
 	}
 }

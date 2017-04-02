@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.bukkit.ChatColor;
-import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.Sign;
 import org.bukkit.entity.Player;
@@ -18,6 +17,7 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
 
 import com.bergerkiller.bukkit.common.MessageBuilder;
+import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.events.PacketReceiveEvent;
 import com.bergerkiller.bukkit.common.events.PacketSendEvent;
 import com.bergerkiller.bukkit.common.protocol.CommonPacket;
@@ -43,13 +43,12 @@ public class SLListener implements Listener, PacketListener {
 		if (ignore) {
 			return;
 		}
-		if (event.getType() == PacketType.OUT_UPDATE_SIGN) {
+		if (event.getType() == PacketType.OUT_TILE_ENTITY_DATA) {
 			CommonPacket packet = event.getPacket();
-			Block block = PacketType.OUT_UPDATE_SIGN.getBlock(packet.getHandle(), event.getPlayer().getWorld());
-			VirtualSign sign = VirtualSign.get(block);
+			IntVector3 position = packet.read(PacketType.OUT_TILE_ENTITY_DATA.position);
+			VirtualSign sign = VirtualSign.get(event.getPlayer().getWorld(), position);
 			if (sign != null) {
-				// Set the lines of the packet to the valid lines
-				packet.write(PacketType.OUT_UPDATE_SIGN.lines, LineConverter.convert(sign.getLines(event.getPlayer()).get()));
+			    sign.applyToPacket(event.getPlayer(), packet);
 			}
 		}
 	}
