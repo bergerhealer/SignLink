@@ -13,7 +13,6 @@ import org.bukkit.entity.Player;
 
 import com.bergerkiller.bukkit.common.BlockLocation;
 import com.bergerkiller.bukkit.common.ToggledState;
-import com.bergerkiller.bukkit.common.conversion.Conversion;
 import com.bergerkiller.bukkit.common.nbt.CommonTagCompound;
 import com.bergerkiller.bukkit.common.protocol.CommonPacket;
 import com.bergerkiller.bukkit.common.protocol.PacketType;
@@ -24,6 +23,7 @@ import com.bergerkiller.bukkit.common.utils.MaterialUtil;
 import com.bergerkiller.bukkit.common.utils.PacketUtil;
 import com.bergerkiller.bukkit.common.utils.PlayerUtil;
 import com.bergerkiller.bukkit.common.utils.WorldUtil;
+import com.bergerkiller.bukkit.common.wrappers.ChatText;
 import com.bergerkiller.bukkit.sl.API.Variables;
 
 /**
@@ -253,7 +253,7 @@ public class VirtualSign extends VirtualSignStore {
             //System.out.println("Tn[" + i + "] = " + Conversion.chatJsonToText.convert(old_text));
 
             String key = "Text" + (i+1);
-            String text = Conversion.chatTextToJson.convert(lines.get(i));
+            String text = ChatText.fromMessage(lines.get(i)).getJson();
             compound.putValue(key, text);
         }
 
