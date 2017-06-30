@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.bukkit.ChatColor;
+import org.bukkit.World;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.Sign;
 import org.bukkit.entity.Player;
@@ -43,14 +44,24 @@ public class SLListener implements Listener, PacketListener {
 		if (ignore) {
 			return;
 		}
+
+        CommonPacket packet = event.getPacket();
+        IntVector3 position;
+        World world;
 		if (event.getType() == PacketType.OUT_TILE_ENTITY_DATA) {
-			CommonPacket packet = event.getPacket();
-			IntVector3 position = packet.read(PacketType.OUT_TILE_ENTITY_DATA.position);
-			VirtualSign sign = VirtualSign.get(event.getPlayer().getWorld(), position);
-			if (sign != null) {
-			    sign.applyToPacket(event.getPlayer(), packet);
-			}
+			position = packet.read(PacketType.OUT_TILE_ENTITY_DATA.position);
+			world = event.getPlayer().getWorld();
+		} else if (event.getType() == PacketType.OUT_UPDATE_SIGN) {
+		    position = packet.read(PacketType.OUT_UPDATE_SIGN.position);
+		    world = packet.read(PacketType.OUT_UPDATE_SIGN.world);
+		} else {
+		    return;
 		}
+
+        VirtualSign sign = VirtualSign.get(world, position);
+        if (sign != null) {
+            sign.applyToPacket(event.getPlayer(), packet);
+        }
 	}
 
 	@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)

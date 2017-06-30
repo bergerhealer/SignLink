@@ -51,7 +51,7 @@ public class SignLink extends PluginBase {
 		plugin = this;
 		final SLListener listener = new SLListener();
 		this.register((Listener) listener);
-		this.register((PacketListener) listener, PacketType.OUT_TILE_ENTITY_DATA);
+		this.register((PacketListener) listener, PacketType.OUT_TILE_ENTITY_DATA, PacketType.OUT_UPDATE_SIGN);
 		this.register("togglesignupdate", "reloadsignlink", "variable");
 
 		FileConfiguration config = new FileConfiguration(this);

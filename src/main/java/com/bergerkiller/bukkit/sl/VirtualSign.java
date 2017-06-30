@@ -242,23 +242,33 @@ public class VirtualSign extends VirtualSignStore {
      * @param updatePacket for this sign
      */
     public void applyToPacket(VirtualLines lines, CommonPacket updatePacket) {
-        if (updatePacket.getType() != PacketType.OUT_TILE_ENTITY_DATA) return;
+        if (updatePacket.getType() == PacketType.OUT_TILE_ENTITY_DATA) {
+            // >= MC 1.10.2
+            
+            CommonTagCompound compound = updatePacket.read(PacketType.OUT_TILE_ENTITY_DATA.data);
+            // ====================================================================
 
-        CommonTagCompound compound = updatePacket.read(PacketType.OUT_TILE_ENTITY_DATA.data);
-        // ====================================================================
+            for (int i = 0; i < VirtualLines.LINE_COUNT; i++) {
+                //String old_text = compound.getValue(key, "");
+                //System.out.println("Ln[" + i + "] = " + old_text);
+                //System.out.println("Tn[" + i + "] = " + Conversion.chatJsonToText.convert(old_text));
 
-        for (int i = 0; i < VirtualLines.LINE_COUNT; i++) {
-            //String old_text = compound.getValue(key, "");
-            //System.out.println("Ln[" + i + "] = " + old_text);
-            //System.out.println("Tn[" + i + "] = " + Conversion.chatJsonToText.convert(old_text));
+                String key = "Text" + (i+1);
+                String text = ChatText.fromMessage(lines.get(i)).getJson();
+                compound.putValue(key, text);
+            }
 
-            String key = "Text" + (i+1);
-            String text = ChatText.fromMessage(lines.get(i)).getJson();
-            compound.putValue(key, text);
+            // ====================================================================
+            updatePacket.write(PacketType.OUT_TILE_ENTITY_DATA.data, compound);
+        } else if (updatePacket.getType() == PacketType.OUT_UPDATE_SIGN) {
+            // <= MC 1.8.8
+
+            ChatText[] pkt_lines = updatePacket.read(PacketType.OUT_UPDATE_SIGN.lines);
+            for (int i = 0; i < VirtualLines.LINE_COUNT; i++) {
+                pkt_lines[i] = ChatText.fromMessage(lines.get(i));
+            }
+            updatePacket.write(PacketType.OUT_UPDATE_SIGN.lines, pkt_lines);
         }
-
-        // ====================================================================
-        updatePacket.write(PacketType.OUT_TILE_ENTITY_DATA.data, compound);
     }
 
     /**
