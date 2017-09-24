@@ -80,7 +80,7 @@ public class SLListener implements Listener, PacketListener {
         }
 
         // Update sign order and other information the next tick (after this sign is placed)
-        VirtualSign.updateSign(event.getBlock());
+        VirtualSign.updateSign(event.getBlock(), event.getLines());
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -128,15 +128,9 @@ public class SLListener implements Listener, PacketListener {
                 if (state instanceof Sign) {
                     Sign sign = (Sign) state;
 
-                    // Load the sign
-                    VirtualSign vsign = VirtualSign.get(state.getBlock());
+                    // Update the sign
+                    VirtualSign vsign = VirtualSign.createSign(sign);
                     if (vsign != null) {
-                        vsign.setLoaded(true);
-                        if (!vsign.validate(sign)) {
-                            // This sign is no longer valid (for whatever reason)
-                            continue;
-                        }
-                    } else {
                         // Detect variables on the sign and add lines that have them
                         for (int i = 0; i < VirtualLines.LINE_COUNT; i++) {
                             String varname = Variables.parseVariableName(sign.getLine(i));
@@ -147,9 +141,6 @@ public class SLListener implements Listener, PacketListener {
                                 }
                             }
                         }
-
-                        // Refresh newly found signs
-                        VirtualSign.updateSign(sign.getBlock());
                     }
 
                     // Fill with variables

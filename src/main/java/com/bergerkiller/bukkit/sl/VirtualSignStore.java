@@ -210,7 +210,28 @@ public class VirtualSignStore {
      * 
      * @param signBlock to update
      */
-    public static synchronized void updateSign(Block signBlock) {
+    public static synchronized void updateSign(Block signBlock, String[] lines) {
+        if (!exists(signBlock)) {
+            add(signBlock, lines);
+        }
         changedSignBlocks.add(new BlockLocation(signBlock));
+    }
+
+    /**
+     * Tells the store that a new sign is available, creating the virtual sign that represents it.
+     * The sign will be scheduled for further refreshing in the next tick.
+     * 
+     * @param sign to update
+     */
+    public static synchronized VirtualSign createSign(Sign sign) {
+        Block signBlock = sign.getBlock();
+        VirtualSign vsign = get(signBlock);
+        if (vsign == null) {
+            vsign = add(sign);
+        }
+        if (vsign.validate(sign)) {
+            changedSignBlocks.add(new BlockLocation(signBlock));
+        }
+        return vsign;
     }
 }

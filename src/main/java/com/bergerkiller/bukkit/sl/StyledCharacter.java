@@ -4,6 +4,9 @@ import org.bukkit.ChatColor;
 
 import com.bergerkiller.bukkit.common.utils.StringUtil;
 
+/**
+ * A single character displayed on the sign, with all styling that is applied.
+ */
 public class StyledCharacter {
     public final char character;
     public final ChatColor color;

@@ -8,6 +8,9 @@ import org.bukkit.ChatColor;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.bergerkiller.bukkit.common.utils.StringUtil;
 
+/**
+ * A list of styled characters with extra String-like helper methods
+ */
 public class StyledString extends ArrayList<StyledCharacter> {
     private static final long serialVersionUID = -9201633429398374786L;
 
