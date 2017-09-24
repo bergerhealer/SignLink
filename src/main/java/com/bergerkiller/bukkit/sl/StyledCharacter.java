@@ -2,6 +2,7 @@ package com.bergerkiller.bukkit.sl;
 
 import java.util.Arrays;
 import java.util.LinkedList;
+import java.util.List;
 
 import org.bukkit.ChatColor;
 
@@ -14,11 +15,19 @@ public class StyledCharacter {
     public final ChatColor[] formats;
     public final int width;
 
+    public StyledCharacter(char character) {
+        this(character, ChatColor.BLACK, new ChatColor[0]);
+    }
+
     public StyledCharacter(char character, ChatColor color, ChatColor[] formats) {
         this.character = character;
         this.color = color;
         this.formats = formats;
-        this.width = StringUtil.getWidth(this.character) + ( (this.character == ' ') ? 2 : 1 );
+        if (this.character == '\0') {
+            this.width = 0;
+        } else {
+            this.width = StringUtil.getWidth(this.character) + ( (this.character == ' ') ? 2 : 1 );
+        }
     }
 
     /**
@@ -27,7 +36,7 @@ public class StyledCharacter {
      * @return empty space with formatting of this character
      */
     public StyledCharacter asSpace() {
-        return new StyledCharacter(' ', this.color, new ChatColor[0]);
+        return new StyledCharacter(' ', this.color, this.formats);
     }
 
     /**
@@ -74,26 +83,56 @@ public class StyledCharacter {
                 result.append(StringUtil.CHAT_STYLE_CHAR).append(currentColor.getChar());
             }
             // Append the actual character of interest
-            result.append(sc.character);
+            if (sc.character != '\0') {
+                result.append(sc.character);
+            }
         }
         return result.toString();
     }
 
     /**
-     * Converts formatted text into a linked list of styled characters
+     * Gets the total amount of pixel width characters take up
+     * 
+     * @param characters
+     * @return total width
+     */
+    public static int getTotalWidth(Iterable<StyledCharacter> characters) {
+        int totalWidth = 0;
+        for (StyledCharacter sc : characters) {
+            totalWidth += sc.width;
+        }
+        return totalWidth;
+    }
+
+    /**
+     * Converts formatted text into a linked list of styled characters.
      * 
      * @param text input
      * @return styled character linked list output
      */
     public static LinkedList<StyledCharacter> getChars(String text) {
+        StyledCharacter prev = new StyledCharacter(' ', ChatColor.BLACK, new ChatColor[0]);
+        return getChars(prev, text);
+    }
+
+    /**
+     * Converts formatted text into a linked list of styled characters.
+     * 
+     * @param previousChar containing the style from which to continue
+     * @param text input
+     * @return styled character linked list output
+     */
+    public static LinkedList<StyledCharacter> getChars(StyledCharacter previousChar, String text) {
         // Turn every character into a 'styled' character token
         // Every single character must know what styles are applied in case of cut-off
         LinkedList<StyledCharacter> characters = new LinkedList<StyledCharacter>();
-        ChatColor currentColor = ChatColor.BLACK;
-        ChatColor[] currentFormats = new ChatColor[0];
+        ChatColor currentColor = previousChar.color;
+        ChatColor[] currentFormats = previousChar.formats;
+        boolean hasFormatting = false;
         for (int i = 0; i < text.length(); i++) {
             char c = text.charAt(i);
             if (c == StringUtil.CHAT_STYLE_CHAR) {
+                hasFormatting = true;
                 if (++i >= text.length()) break;
 
                 // Handle chat formatting characters
@@ -112,6 +151,9 @@ public class StyledCharacter {
                 characters.addLast(new StyledCharacter(c, currentColor, currentFormats));
             }
         }
+        if (characters.isEmpty() && hasFormatting) {
+            characters.add(new StyledCharacter('\0', currentColor, currentFormats));
+        }
         return characters;
     }
 
@@ -119,14 +161,43 @@ public class StyledCharacter {
      * Gets the amount of signs minimally required to display a sequence of StyledCharacters
      * 
      * @param characters to display
+     * @param leftPadding amount of width already occupied to the left
+     * @param rightPadding amount of width already occupied to the right
      * @return number of signs needed to display
      */
-    public static int getSignCount(Iterable<StyledCharacter> characters) {
-        int width = 0;
-        int signCount = 0;
-        for (StyledCharacter sc : characters) {
+    public static int getSignCount(List<StyledCharacter> characters, int leftPadding, int rightPadding) {
+        // Definitely need 2 or more signs. First handle the characters to the right.
+        // This handles the rightPadding logic.
+        int signCount = 1;
+        int endIndex = characters.size() - 1;
+        int width = rightPadding;
+        while (endIndex >= 0) {
+            StyledCharacter sc = characters.get(endIndex);
+            int newWidth = (width + sc.width);
+            if (canFitOnSign(newWidth)) {
+                width = newWidth;
+                endIndex--;
+            } else {
+                break;
+            }
+        }
+
+        // If no more text remains, we only have to handle left padding
+        // Padding only applies for one sign, which means only 1 or 2 is returned.
+        if (endIndex < 0) {
+            if (canFitOnSign(width + leftPadding)) {
+                return 1;
+            } else {
+                return 2;
+            }
+        }
+
+        // All remaining characters must be filled left-to-right
+        width = leftPadding;
+        for (int i = 0; i <= endIndex; i++) {
+            StyledCharacter sc = characters.get(i);
             width += sc.width;
-            if (width > VirtualLines.LINE_WIDTH_LIMIT) {
+            if (!canFitOnSign(width)) {
                 width = sc.width;
                 signCount++;
             }
@@ -135,5 +206,9 @@ public class StyledCharacter {
             signCount++;
         }
         return signCount;
+    }
+
+    private static boolean canFitOnSign(int width) {
+        return width < VirtualLines.LINE_WIDTH_LIMIT;
     }
 }
