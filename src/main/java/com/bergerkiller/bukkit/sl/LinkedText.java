@@ -10,6 +10,7 @@ import java.util.List;
  */
 public class LinkedText {
     private int line = 0;
+    private int signCount = 0;
     private List<VirtualSign> signs = Collections.emptyList();
     private SignDirection direction = SignDirection.NONE;
     private boolean wrapAround = false;
@@ -24,7 +25,8 @@ public class LinkedText {
 
     public void setSigns(List<VirtualSign> signs) {
         this.signs = signs;
-        if (signs.size() != this.remainingWidths.length) {
+        if (this.signCount != signs.size()) {
+            this.signCount = signs.size();
             this.remainingWidths = new int[signs.size()];
             this.parts = new StyledString[signs.size()];
             for (int i = 0; i < this.parts.length; i++) {
@@ -47,7 +49,7 @@ public class LinkedText {
 
     // handles a variable wrapping around itself cyclically to fill the available space fully
     private void handleWrapAround() {
-        int remainingSigns = signs.size();
+        int remainingSigns = this.signCount;
 
         // Add all current characters to the signs
         int width = 0;
@@ -91,8 +93,8 @@ public class LinkedText {
         // Add spaces left and/or right of the characters array until we run out
         int leftPadding = this.prefixChars.getTotalWidth();
         int rightPadding = this.postfixChars.getTotalWidth();
-        StyledCharacter space_first = this.characters.get(0).asSpace();
-        StyledCharacter space_last = this.characters.get(this.characters.size() - 1).asSpace();
+        StyledCharacter space_first = this.characters.getFirst().asSpace();
+        StyledCharacter space_last = this.characters.getLast().asSpace();
         SignDirection space_dir = this.direction;
         boolean alternator = false;
         while (true) {
@@ -102,13 +104,13 @@ public class LinkedText {
             }
             if (space_dir == SignDirection.LEFT) {
                 this.characters.add(0, space_first);
-                if (this.characters.getSignCount(leftPadding, rightPadding) > signs.size()) {
+                if (this.characters.getSignCount(leftPadding, rightPadding) > this.signCount) {
                     this.characters.remove(0);
                     break;
                 }
             } else {
                 this.characters.add(space_last);
-                if (this.characters.getSignCount(leftPadding, rightPadding) > signs.size()) {
+                if (this.characters.getSignCount(leftPadding, rightPadding) > this.signCount) {
                     this.characters.remove(this.characters.size() - 1);
                     break;
                 }
@@ -151,7 +153,7 @@ public class LinkedText {
                 }
                 part.addAll(this.tmpString);
                 this.tmpString.clear();
-                if (signIndex == signs.size() - 1 && !postfixChars.isEmpty()) {
+                if (signIndex == this.signCount - 1 && !postfixChars.isEmpty()) {
                     part.addAll(postfixChars);
                 }
 
@@ -161,7 +163,7 @@ public class LinkedText {
                 }
 
                 // Next sign
-                if (++signIndex >= signs.size()) {
+                if (++signIndex >= this.signCount) {
                     break; // done! No more sign space.
                 }
             }
@@ -183,7 +185,7 @@ public class LinkedText {
     public void generate(String variableValue) {
         // Sometimes signs are iterated in reverse!
         int firstSignIndex = 0;
-        int lastSignIndex = signs.size() - 1;
+        int lastSignIndex = this.signCount - 1;
         if (this.direction == SignDirection.LEFT) {
             firstSignIndex = lastSignIndex;
             lastSignIndex = 0;
@@ -224,7 +226,7 @@ public class LinkedText {
         }
 
         // Handle multi-sign display so that text on the last sign is appended correctly
-        if (signs.size() > 1) {
+        if (this.signCount > 1) {
             String lastSignRealLine = signs.get(lastSignIndex).getRealLine(this.line);
             index1 = lastSignRealLine.indexOf('%');
             index2 = lastSignRealLine.lastIndexOf('%');
@@ -254,17 +256,12 @@ public class LinkedText {
             }
         }
 
-        // Convert text to a list of styled character tokens
-        this.prefixChars.setToString(prefix);
-        this.postfixChars.setToString(postfix);
-
-        // Non-empty values
-        if (!this.prefixChars.isEmpty()) {
-            this.characters.setToString(this.prefixChars.getLast(), variableValue);
-        } else {
-            // Add the value without prefix
-            this.characters.setToString(variableValue);
-        }
+        // Convert text to StyledString
+        this.prefixChars.setTo(prefix);
+        this.characters.setStartStyle(this.prefixChars.getEndStyle());
+        this.characters.setTo(variableValue);
+        this.postfixChars.setStartStyle(this.characters.getEndStyle());
+        this.postfixChars.setTo(postfix);
 
         // Empty values: use a single space as a placeholder
         // This makes sure post-processing does not trip
@@ -284,7 +281,7 @@ public class LinkedText {
         // Handle special post-processing
         if (this.wrapAround) {
             this.handleWrapAround();
-        } else if (signs.size() > 1 || direction != SignDirection.NONE) {
+        } else if (this.signCount > 1 || direction != SignDirection.NONE) {
             this.handleMultiSign();
         }
 

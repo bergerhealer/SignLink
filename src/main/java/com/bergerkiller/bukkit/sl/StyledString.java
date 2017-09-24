@@ -13,54 +13,39 @@ import com.bergerkiller.bukkit.common.utils.StringUtil;
  */
 public class StyledString extends ArrayList<StyledCharacter> {
     private static final long serialVersionUID = -9201633429398374786L;
+    private StyledCharacter startStyle = new StyledCharacter(' ');
+
+    /**
+     * Sets the start style of this Styled String. It's the style applied to the very
+     * first character onwards. By default it is set to all-black unstyled characters.
+     * 
+     * @param startStyle
+     */
+    public void setStartStyle(StyledCharacter startStyle) {
+        this.startStyle = startStyle;
+    }
 
     /**
      * Sets the contents of this Styled String to that of a String
      * 
      * @param text to set to
      */
-    public void setToString(String text) {
+    public void setTo(String text) {
         this.clear();
-        this.appendString(text);
+        this.append(text);
     }
-
-    /**
-     * Sets the contents of this Styled String to that of a String
-     * 
-     * @param startStyle used to define the initial styling options of the text
-     * @param text to set to
-     */
-    public void setToString(StyledCharacter startStyle, String text) {
-        this.clear();
-        this.appendString(startStyle, text);
-    }
-
+    
     /**
      * Appends the contents of a String to this Styled String
      * 
      * @param text to append
      */
-    public void appendString(String text) {
-        StyledCharacter prev;
-        if (this.isEmpty()) {
-            prev = new StyledCharacter(' ', ChatColor.BLACK, new ChatColor[0]);
-        } else {
-            prev = this.get(this.size() - 1);
-        }
-        appendString(prev, text);
-    }
-
-    /**
-     * Appends the contents of a String to this Styled String
-     * 
-     * @param startStyle used to define the initial styling options of the text
-     * @param text to append
-     */
-    public void appendString(StyledCharacter startStyle, String text) {
+    public void append(String text) {
         // Turn every character into a 'styled' character token
         // Every single character must know what styles are applied in case of cut-off
-        ChatColor currentColor = startStyle.color;
-        ChatColor[] currentFormats = startStyle.formats;
+        StyledCharacter endStyle = this.getEndStyle();
+        ChatColor currentColor = endStyle.color;
+        ChatColor[] currentFormats = endStyle.formats;
         boolean hasFormatting = false;
         for (int i = 0; i < text.length(); i++) {
             char c = text.charAt(i);
@@ -86,6 +71,22 @@ public class StyledString extends ArrayList<StyledCharacter> {
         }
         if (this.isEmpty() && hasFormatting) {
             this.add(new StyledCharacter('\0', currentColor, currentFormats));
+        }
+    }
+
+    /**
+     * Gets the style used at the end of the current String.
+     * If this String is empty, the start style is returned instead.
+     * This start style is set using {@link #appendString(StyledCharacter, String)} and
+     * {@link #setToString(StyledCharacter, String)}.
+     * 
+     * @return end style character
+     */
+    public StyledCharacter getEndStyle() {
+        if (this.isEmpty()) {
+            return this.startStyle;
+        } else {
+            return this.getLast();
         }
     }
 

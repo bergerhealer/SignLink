@@ -35,7 +35,7 @@ public class Ticker {
 
     public Ticker(String initialvalue) {
         this.value = initialvalue;
-        this.valueElements.setToString(initialvalue);
+        this.valueElements.setTo(initialvalue);
     }
 
     /**
@@ -152,7 +152,7 @@ public class Ticker {
      public void reset(String value) {
          this.pauseindex = 0;
          this.counter = 0;
-         this.valueElements.setToString(value);
+         this.valueElements.setTo(value);
          this.value = value;
          for (Pause p : this.pauses) {
              p.currentdelay = 0;
