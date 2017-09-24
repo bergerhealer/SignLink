@@ -1,13 +1,13 @@
 package com.bergerkiller.bukkit.sl.API;
 
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 
 import com.bergerkiller.bukkit.common.ToggledState;
 import com.bergerkiller.bukkit.common.config.ConfigurationNode;
 import com.bergerkiller.bukkit.common.utils.StringUtil;
 import com.bergerkiller.bukkit.sl.StyledCharacter;
+import com.bergerkiller.bukkit.sl.StyledString;
 
 /**
  * Ticks text on a per-tick basis to allow textual animations
@@ -16,7 +16,7 @@ public class Ticker {
     //These two are used to check if it is updated
     protected String[] players = null;
     protected ToggledState checked = new ToggledState();
-    private LinkedList<StyledCharacter> valueElements;
+    private final StyledString valueElements = new StyledString();
     private String value = "";
     private ArrayList<Pause> pauses = new ArrayList<Pause>();
     private int pauseindex = 0;
@@ -35,7 +35,7 @@ public class Ticker {
 
     public Ticker(String initialvalue) {
         this.value = initialvalue;
-        this.valueElements = StyledCharacter.getChars(initialvalue);
+        this.valueElements.setToString(initialvalue);
     }
 
     /**
@@ -152,7 +152,7 @@ public class Ticker {
      public void reset(String value) {
          this.pauseindex = 0;
          this.counter = 0;
-         this.valueElements = StyledCharacter.getChars(value);
+         this.valueElements.setToString(value);
          this.value = value;
          for (Pause p : this.pauses) {
              p.currentdelay = 0;
@@ -187,7 +187,7 @@ public class Ticker {
             }
         }
         // Now we go with 'on' - show text
-        this.value = StyledCharacter.getText(this.valueElements);
+        this.value = this.valueElements.toString();
         return this.value;
     }
 
@@ -199,10 +199,10 @@ public class Ticker {
     public String left() {
         // Translate elements one to the left
         if (this.valueElements.size() >= 2) {
-            StyledCharacter first = this.valueElements.removeFirst();
-            this.valueElements.addLast(first);
+            StyledCharacter first = this.valueElements.remove(0);
+            this.valueElements.add(first);
             // Update
-            this.value = StyledCharacter.getText(this.valueElements);
+            this.value = this.valueElements.toString();
         }
         return this.value;
     }
@@ -215,10 +215,10 @@ public class Ticker {
     public String right() {
         // Translate elements one to the right
         if (this.valueElements.size() >= 2) {
-            StyledCharacter last = this.valueElements.removeLast();
-            this.valueElements.addFirst(last);
+            StyledCharacter last = this.valueElements.remove(this.valueElements.size() - 1);
+            this.valueElements.add(0, last);
             // Update
-            this.value = StyledCharacter.getText(this.valueElements);
+            this.value = this.valueElements.toString();
         }
         return this.value;
     }

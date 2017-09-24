@@ -1,10 +1,8 @@
 package com.bergerkiller.bukkit.sl;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 
 /**
@@ -17,15 +15,21 @@ public class LinkedText {
     private boolean wrapAround = false;
     private boolean isCentred = false;
     private int[] remainingWidths = new int[0];
+    private StyledString[] parts = new StyledString[0];
+    private StyledString tmpString = new StyledString();
 
-    private LinkedList<StyledCharacter> prefixChars;
-    private LinkedList<StyledCharacter> postfixChars;
-    private LinkedList<StyledCharacter> characters;
+    private final StyledString prefixChars = new StyledString();
+    private final StyledString postfixChars = new StyledString();
+    private final StyledString characters = new StyledString();
 
     public void setSigns(List<VirtualSign> signs) {
         this.signs = signs;
         if (signs.size() != this.remainingWidths.length) {
             this.remainingWidths = new int[signs.size()];
+            this.parts = new StyledString[signs.size()];
+            for (int i = 0; i < this.parts.length; i++) {
+                this.parts[i] = new StyledString();
+            }
         }
     }
 
@@ -47,7 +51,7 @@ public class LinkedText {
 
         // Add all current characters to the signs
         int width = 0;
-        for (StyledCharacter character : characters) {
+        for (StyledCharacter character : this.characters) {
             width += character.width;
             if (width > VirtualLines.LINE_WIDTH_LIMIT) {
                 width = character.width;
@@ -61,13 +65,14 @@ public class LinkedText {
 
         // Fill remaining space by wrapping around the characters
         if (remainingSigns > 0) {
-            ArrayList<StyledCharacter> wrappedChars = new ArrayList<StyledCharacter>(characters);
+            this.tmpString.clear();
+            this.tmpString.addAll(this.characters);
             int wrappedCharIdx = 0;
             while (true) {
-                if (wrappedCharIdx == wrappedChars.size()) {
+                if (wrappedCharIdx == this.tmpString.size()) {
                     wrappedCharIdx = 0;
                 }
-                StyledCharacter sc = wrappedChars.get(wrappedCharIdx++);
+                StyledCharacter sc = this.tmpString.get(wrappedCharIdx++);
                 width += sc.width;
                 if (width > VirtualLines.LINE_WIDTH_LIMIT) {
                     width = sc.width;
@@ -75,7 +80,7 @@ public class LinkedText {
                         break;
                     }
                 }
-                characters.addLast(sc);
+                this.characters.add(sc);
             }
         }
     }
@@ -84,10 +89,10 @@ public class LinkedText {
     // Add spaces to the left, right, or alternating depending on sign direction
     private void handleMultiSign() {
         // Add spaces left and/or right of the characters array until we run out
-        int leftPadding = StyledCharacter.getTotalWidth(this.prefixChars);
-        int rightPadding = StyledCharacter.getTotalWidth(this.postfixChars);
-        StyledCharacter space_first = this.characters.getFirst().asSpace();
-        StyledCharacter space_last = this.characters.getLast().asSpace();
+        int leftPadding = this.prefixChars.getTotalWidth();
+        int rightPadding = this.postfixChars.getTotalWidth();
+        StyledCharacter space_first = this.characters.get(0).asSpace();
+        StyledCharacter space_last = this.characters.get(this.characters.size() - 1).asSpace();
         SignDirection space_dir = this.direction;
         boolean alternator = false;
         while (true) {
@@ -96,21 +101,85 @@ public class LinkedText {
                 space_dir = alternator ? SignDirection.LEFT : SignDirection.RIGHT;
             }
             if (space_dir == SignDirection.LEFT) {
-                this.characters.addFirst(space_first);
-                if (StyledCharacter.getSignCount(this.characters, leftPadding, rightPadding) > signs.size()) {
-                    this.characters.removeFirst();
+                this.characters.add(0, space_first);
+                if (this.characters.getSignCount(leftPadding, rightPadding) > signs.size()) {
+                    this.characters.remove(0);
                     break;
                 }
             } else {
-                this.characters.addLast(space_last);
-                if (StyledCharacter.getSignCount(this.characters, leftPadding, rightPadding) > signs.size()) {
-                    this.characters.removeLast();
+                this.characters.add(space_last);
+                if (this.characters.getSignCount(leftPadding, rightPadding) > signs.size()) {
+                    this.characters.remove(this.characters.size() - 1);
                     break;
                 }
             }
         }
     }
 
+    // takes the prefix, postfix and value characters and combines them into parts displayed on each sign
+    private void createParts() {
+        // Clear old parts
+        for (StyledString part : this.parts) {
+            part.clear();
+        }
+
+        // This temporary buffer is used while building the String
+        this.tmpString.clear();
+
+        // Next, add characters to the sign lines until we run out of space on the sign, then reset and move on
+        int signIndex = 0;
+        int currentLineWidth = 0;
+        Iterator<StyledCharacter> charactersIter = this.characters.iterator();
+        while (true) {
+            boolean hasNext = charactersIter.hasNext();
+            StyledCharacter sc = hasNext ? charactersIter.next() : null;
+            if (hasNext) {
+                currentLineWidth += sc.width;
+            }
+
+            // Try to add the character width to the next sign until it is full
+            if (currentLineWidth > remainingWidths[signIndex] || !hasNext) {
+                // Limit exceeded, this sign can not add this new character
+                // Reset the width to only include the new character
+                currentLineWidth = hasNext ? sc.width : 0;
+
+                // Compile all styled characters found thus far into a single String-formatted line
+                // Handle prefix and postfix as well
+                StyledString part = this.parts[signIndex];
+                if (signIndex == 0 && !prefixChars.isEmpty()) {
+                    part.addAll(prefixChars);
+                }
+                part.addAll(this.tmpString);
+                this.tmpString.clear();
+                if (signIndex == signs.size() - 1 && !postfixChars.isEmpty()) {
+                    part.addAll(postfixChars);
+                }
+
+                // End of characters
+                if (!hasNext) {
+                    break;
+                }
+
+                // Next sign
+                if (++signIndex >= signs.size()) {
+                    break; // done! No more sign space.
+                }
+            }
+
+            // Add the new character
+            if (hasNext) {
+                this.tmpString.add(sc);
+            } else {
+                break;
+            }
+        }
+    }
+
+    /**
+     * Generates the text displayed on the signs
+     * 
+     * @param variableValue to display
+     */
     public void generate(String variableValue) {
         // Sometimes signs are iterated in reverse!
         int firstSignIndex = 0;
@@ -186,20 +255,20 @@ public class LinkedText {
         }
 
         // Convert text to a list of styled character tokens
-        this.prefixChars = StyledCharacter.getChars(prefix);
-        this.postfixChars = StyledCharacter.getChars(postfix);
+        this.prefixChars.setToString(prefix);
+        this.postfixChars.setToString(postfix);
 
         // Non-empty values
         if (!this.prefixChars.isEmpty()) {
-            this.characters = StyledCharacter.getChars(this.prefixChars.getLast(), variableValue);
+            this.characters.setToString(this.prefixChars.getLast(), variableValue);
         } else {
             // Add the value without prefix
-            this.characters= StyledCharacter.getChars(variableValue);
+            this.characters.setToString(variableValue);
         }
 
         // Empty values: use a single space as a placeholder
         // This makes sure post-processing does not trip
-        if (StyledCharacter.getTotalWidth(this.characters) == 0) {
+        if (this.characters.getTotalWidth() == 0) {
             if (this.prefixChars.isEmpty()) {
                 this.characters.add(new StyledCharacter(' '));
             } else {
@@ -209,8 +278,8 @@ public class LinkedText {
 
         // Calculate the widths on the signs still available for characters to be displayed
         Arrays.fill(this.remainingWidths, VirtualLines.LINE_WIDTH_LIMIT);
-        this.remainingWidths[firstSignIndex] -= StyledCharacter.getTotalWidth(this.prefixChars);
-        this.remainingWidths[lastSignIndex] -= StyledCharacter.getTotalWidth(this.postfixChars);
+        this.remainingWidths[firstSignIndex] -= this.prefixChars.getTotalWidth();
+        this.remainingWidths[lastSignIndex] -= this.postfixChars.getTotalWidth();
 
         // Handle special post-processing
         if (this.wrapAround) {
@@ -218,61 +287,19 @@ public class LinkedText {
         } else if (signs.size() > 1 || direction != SignDirection.NONE) {
             this.handleMultiSign();
         }
+
+        // Create the parts displayed on each sign
+        this.createParts();
     }
 
+    /**
+     * Applies the generated results to the signs
+     * 
+     * @param forPlayers what players, null for all players
+     */
     public void apply(String... forPlayers) {
-        // Next, add characters to the sign lines until we run out of space on the sign, then reset and move on
-        int signIndex = 0;
-        VirtualSign currentSign = signs.get(0);
-        LinkedList<StyledCharacter> currentSignStyledLine = new LinkedList<StyledCharacter>();
-        ArrayList<StyledCharacter> tmpList = new ArrayList<StyledCharacter>();
-        int currentLineWidth = 0;
-        Iterator<StyledCharacter> charactersIter = characters.iterator();
-        while (true) {
-            boolean hasNext = charactersIter.hasNext();
-            StyledCharacter sc = hasNext ? charactersIter.next() : null;
-            if (hasNext) {
-                currentLineWidth += sc.width;
-            }
-
-            // Try to add the character width to the next sign until it is full
-            if (currentLineWidth > remainingWidths[signIndex] || !hasNext) {
-                // Limit exceeded, this sign can not add this new character
-                // Reset the width to only include the new character
-                currentLineWidth = hasNext ? sc.width : 0;
-
-                // Compile all styled characters found thus far into a single String-formatted line
-                // Handle prefix and postfix as well
-                if (signIndex == 0 && !prefixChars.isEmpty()) {
-                    tmpList.addAll(prefixChars);
-                }
-                tmpList.addAll(currentSignStyledLine);
-                if (signIndex == signs.size() - 1 && !postfixChars.isEmpty()) {
-                    tmpList.addAll(postfixChars);
-                }
-                currentSign.setLine(this.line, StyledCharacter.getText(tmpList), forPlayers);
-                currentSignStyledLine.clear();
-                tmpList.clear();
-
-                // End of characters
-                if (!hasNext) {
-                    break;
-                }
-
-                // Next sign
-                if (++signIndex >= signs.size()) {
-                    break; // done! No more sign space.
-                } else {
-                    currentSign = signs.get(signIndex);
-                }
-            }
-
-            // Add the new character
-            if (hasNext) {
-                currentSignStyledLine.addLast(sc);
-            } else {
-                break;
-            }
+        for (int i = 0; i < this.parts.length; i++) {
+            this.signs.get(i).setLine(this.line, this.parts[i].toString(), forPlayers);
         }
     }
 }
