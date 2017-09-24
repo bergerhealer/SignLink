@@ -14,7 +14,7 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.serverversion>1.12-R0.1</project.serverversion>
-    <project.bkcversion>1.12-v2-SNAPSHOT</project.bkcversion>
+    <project.bkcversion>1.12-v2</project.bkcversion>
   </properties>
 
   <repositories>
@@ -31,8 +31,8 @@
 
     <!-- Repo for access to BKCommonLib -->
     <repository>
-      <id>mg-dev-repo</id>
-      <url>https://maven.mg-dev.eu/</url>
+        <id>MG-Dev Jenkins CI Maven Repository</id>
+        <url>https://ci.mg-dev.eu/plugin/repository/everything</url>
     </repository>
   </repositories>
 
