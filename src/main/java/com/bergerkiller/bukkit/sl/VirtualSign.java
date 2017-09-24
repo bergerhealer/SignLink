@@ -61,6 +61,19 @@ public class VirtualSign extends VirtualSignStore {
         this.defaultlines = new VirtualLines(lines);
     }
 
+    protected VirtualSign(BlockLocation location, Sign sign) {
+        this.location = location;
+        this.loaded.set(true);
+        this.sign = sign;
+
+        String[] lines = sign.getLines();
+        if (lines == null) {
+            lines = new String[] {"", "", "", ""};
+        }
+        this.oldlines = LogicUtil.cloneArray(lines);
+        this.defaultlines = new VirtualLines(lines);
+    }
+
     public void remove() {
         remove(this.getBlock());
     }
@@ -294,6 +307,25 @@ public class VirtualSign extends VirtualSignStore {
             this.remove();
             return false;
         }
+        return true;
+    }
+
+    /**
+     * Performs a Sign validation check to see whether this Virtual Sign is still valid (a Sign block).
+     * If the validation fails, this Sign is removed and False is returned.
+     * 
+     * @param sign BlockState of this sign
+     * @return True if the sign is valid, False if not
+     */
+    public boolean validate(Sign sign) {
+        if (sign.getLines() == null) {
+            this.sign = null;
+            this.remove();
+            return false;
+        }
+        
+        this.sign = sign;
+        this.loaded.set(true);
         return true;
     }
 

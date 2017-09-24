@@ -1,10 +1,12 @@
 package com.bergerkiller.bukkit.sl;
 
+import java.util.HashSet;
 import java.util.Iterator;
 
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.block.Sign;
 import org.bukkit.entity.Player;
 
 import com.bergerkiller.bukkit.common.BlockLocation;
@@ -21,6 +23,7 @@ import com.bergerkiller.bukkit.sl.API.Variables;
  */
 public class VirtualSignStore {
     private static BlockMap<VirtualSign> virtualSigns;
+    private static HashSet<BlockLocation> changedSignBlocks = new HashSet<BlockLocation>();
 
     public static void deinit() {
         virtualSigns.clear();
@@ -41,8 +44,18 @@ public class VirtualSignStore {
         return vsign;
     }
 
+    public static synchronized VirtualSign add(Sign sign) {
+        if (virtualSigns == null) {
+            return null;
+        }
+        BlockLocation loc = new BlockLocation(sign.getBlock());
+        VirtualSign vsign = new VirtualSign(loc, sign);
+        virtualSigns.put(loc, vsign);
+        return vsign;
+    }
+
     public static VirtualSign add(Block signBlock) {
-        return add(signBlock, null);
+        return add(signBlock, (String[]) null);
     }
 
     public static synchronized VirtualSign get(Location at) {
@@ -125,6 +138,24 @@ public class VirtualSignStore {
     }
 
     public static void updateAll() {
+        // Does some housekeeping (the next tick) to clean up issues and update sign order
+        // This makes multi-sign variable displays work
+        if (!changedSignBlocks.isEmpty()) {
+            BlockLocation[] blocks = changedSignBlocks.toArray(new BlockLocation[changedSignBlocks.size()]);
+            changedSignBlocks.clear();
+
+            for (BlockLocation block : blocks) {
+                Block signBlock = block.getBlock();
+                if (signBlock != null) {
+                    if (!VirtualSign.exists(signBlock)) {
+                        VirtualSign.add(signBlock);
+                    }
+                    Variables.updateSignOrder(signBlock);
+                }
+            }
+        }
+
+        // Update all the signs
         for (VirtualSign sign : getAll()) {
             sign.update();
         }
@@ -172,5 +203,14 @@ public class VirtualSignStore {
                 vs.invalidate(player);
             }
         }
+    }
+
+    /**
+     * Schedules a refresh of the sign order and variable display for a sign block
+     * 
+     * @param signBlock to update
+     */
+    public static synchronized void updateSign(Block signBlock) {
+        changedSignBlocks.add(new BlockLocation(signBlock));
     }
 }

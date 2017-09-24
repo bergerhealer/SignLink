@@ -9,6 +9,7 @@ import java.util.logging.Level;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.World;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
@@ -25,6 +26,7 @@ import com.bergerkiller.bukkit.common.protocol.PacketType;
 import com.bergerkiller.bukkit.common.utils.ParseUtil;
 import com.bergerkiller.bukkit.common.utils.StringUtil;
 import com.bergerkiller.bukkit.common.utils.TimeUtil;
+import com.bergerkiller.bukkit.common.utils.WorldUtil;
 import com.bergerkiller.bukkit.sl.API.GroupVariable;
 import com.bergerkiller.bukkit.sl.API.PlayerVariable;
 import com.bergerkiller.bukkit.sl.API.Ticker;
@@ -77,6 +79,8 @@ public class SignLink extends PluginBase {
 
 		VirtualSign.init();
 
+		// Adds signs from offline file storage. No longer used.
+		/*
 		//Load sign locations from file
 		config = new FileConfiguration(this, "linkedsigns.yml");
 		config.load();
@@ -104,7 +108,9 @@ public class SignLink extends PluginBase {
 				}
 			}
 		}
-		updateSigns = true;
+		*/
+
+	    updateSigns = true;
 
 		//General %time% and %date% update thread
 		timetask = new Task(this) {
@@ -140,6 +146,11 @@ public class SignLink extends PluginBase {
 			}
 		}.start(1, 1);
 
+		// Load all signs in all worlds already loaded right now
+		for (World world : WorldUtil.getWorlds()) {
+		    listener.refreshBlockStates(WorldUtil.getBlockStates(world));
+		}
+
 		// Metrics
 		if (this.hasMetrics()) {
 			this.getMetrics().addGraph(new MyDependingPluginsGraph());
@@ -151,7 +162,9 @@ public class SignLink extends PluginBase {
 		Task.stop(timetask);
 		Task.stop(updatetask);
 
-		//Save sign locations to file
+		// Save sign locations to file
+		// No longer used.
+		/*
 		FileConfiguration config = new FileConfiguration(this, "linkedsigns.yml");
 		for (String varname : Variables.getNames()) {
 			List<String> nodes = config.getList(varname, String.class);
@@ -169,7 +182,8 @@ public class SignLink extends PluginBase {
 			}
 		}
 		config.save();
-		
+		*/
+
 		//Save variable values and tickers to file
 		this.saveValues();
 

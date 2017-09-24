@@ -98,6 +98,7 @@ public class Variable implements VariableValue {
 		if (value == null) {
 			value = "%" + this.name + "%";
 		}
+
 		// Is a change required?
 		if (this.defaultvalue.equals(value) && this.playervariables.isEmpty()) {
 			return;

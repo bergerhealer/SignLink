@@ -40,8 +40,9 @@ public class LinkedSign {
 
 	public LinkedSign(Block from, int line) {
 		this(new BlockLocation(from), line, SignDirection.NONE);
-		if (MaterialUtil.ISSIGN.get(from)) {
-			VirtualSign sign = VirtualSign.getOrCreate(from);
+
+        VirtualSign sign = VirtualSign.getOrCreate(from);
+		if (sign != null) {
 			String text = sign.getRealLine(line);
 			int peri = text.indexOf("%");
 			if (peri != -1 && text.lastIndexOf("%") == peri) {
