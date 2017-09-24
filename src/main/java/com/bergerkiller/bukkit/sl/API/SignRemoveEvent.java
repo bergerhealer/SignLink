@@ -10,20 +10,20 @@ import com.bergerkiller.bukkit.sl.LinkedSign;
  */
 public class SignRemoveEvent extends Event {
     private static final HandlerList handlers = new HandlerList();
-	private Variable var;
-	private LinkedSign sign;
+    private Variable var;
+    private LinkedSign sign;
 
-	public SignRemoveEvent(Variable from, LinkedSign sign) {
-		this.var = from;
-		this.sign = sign;
-	}
+    public SignRemoveEvent(Variable from, LinkedSign sign) {
+        this.var = from;
+        this.sign = sign;
+    }
 
-	public Variable getVariable() {
-		return this.var;
-	}
+    public Variable getVariable() {
+        return this.var;
+    }
 
     public LinkedSign getSign() {
-    	return this.sign;
+        return this.sign;
     }
 
     @Override

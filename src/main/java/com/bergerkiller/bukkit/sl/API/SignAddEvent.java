@@ -11,39 +11,39 @@ import com.bergerkiller.bukkit.sl.LinkedSign;
  */
 public class SignAddEvent extends Event implements Cancellable {
     private static final HandlerList handlers = new HandlerList();
-	private boolean cancelled = false;
-	private Variable var;
-	private LinkedSign sign;
+    private boolean cancelled = false;
+    private Variable var;
+    private LinkedSign sign;
 
-	public SignAddEvent(Variable to, LinkedSign sign) {
-		this.var = to;
-		this.sign = sign;
-	}
-
-	public Variable getVariable() {
-		return this.var;
-	}
-
-    public LinkedSign getSign() {
-    	return this.sign;
+    public SignAddEvent(Variable to, LinkedSign sign) {
+        this.var = to;
+        this.sign = sign;
     }
 
-	@Override
-	public boolean isCancelled() {
-		return cancelled;
-	}
+    public Variable getVariable() {
+        return this.var;
+    }
 
-	@Override
-	public void setCancelled(boolean arg0) {
-		this.cancelled = arg0;
-	}
+    public LinkedSign getSign() {
+        return this.sign;
+    }
 
-	@Override
+    @Override
+    public boolean isCancelled() {
+        return cancelled;
+    }
+
+    @Override
+    public void setCancelled(boolean arg0) {
+        this.cancelled = arg0;
+    }
+
+    @Override
     public HandlerList getHandlers() {
         return handlers;
     }
 
     public static HandlerList getHandlerList() {
         return handlers;
-    }	
+    }    
 }
