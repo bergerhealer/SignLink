@@ -21,11 +21,23 @@ public class StyledCharacter {
         this.character = character;
         this.color = color;
         this.formats = formats;
-        if (this.character == '\0') {
+        if (this.isStyleOnly()) {
             this.width = 0;
+        } else if (this.character == '\0') {
+            this.width = 1;
         } else {
             this.width = StringUtil.getWidth(this.character) + ( (this.character == ' ') ? 2 : 1 );
         }
+    }
+
+    /**
+     * Gets whether this character only declares style, and no actual text.
+     * The width of this character is guaranteed to be 0.
+     * 
+     * @return True if only style is stored
+     */
+    public boolean isStyleOnly() {
+        return this.character == '\uFFFF';
     }
 
     /**
@@ -35,6 +47,18 @@ public class StyledCharacter {
      */
     public StyledCharacter asSpace() {
         return new StyledCharacter(' ', this.color, this.formats);
+    }
+
+    /**
+     * Creates a style character that only declares style, and no actual text.
+     * {@link #isStyleOnly()} will return true for this character.
+     * 
+     * @param color style color
+     * @param formats style formats
+     * @return styled character
+     */
+    public static StyledCharacter createStyleChar(ChatColor color, ChatColor[] formats) {
+        return new StyledCharacter('\uFFFF', color, formats);
     }
 
 }

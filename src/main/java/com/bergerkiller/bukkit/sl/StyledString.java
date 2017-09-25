@@ -34,7 +34,7 @@ public class StyledString extends ArrayList<StyledCharacter> {
         this.clear();
         this.append(text);
     }
-    
+
     /**
      * Appends the contents of a String to this Styled String
      * 
@@ -70,8 +70,17 @@ public class StyledString extends ArrayList<StyledCharacter> {
             }
         }
         if (this.isEmpty() && hasFormatting) {
-            this.add(new StyledCharacter('\0', currentColor, currentFormats));
+            this.add(StyledCharacter.createStyleChar(currentColor, currentFormats));
         }
+    }
+
+    /**
+     * Gets the style used at the beginning of the current String.
+     * 
+     * @return start style character
+     */
+    public StyledCharacter getStartStyle() {
+        return this.startStyle;
     }
 
     /**
@@ -210,7 +219,7 @@ public class StyledString extends ArrayList<StyledCharacter> {
                 result.append(StringUtil.CHAT_STYLE_CHAR).append(currentColor.getChar());
             }
             // Append the actual character of interest
-            if (sc.character != '\0') {
+            if (!sc.isStyleOnly()) {
                 result.append(sc.character);
             }
         }
