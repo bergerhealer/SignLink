@@ -38,7 +38,9 @@ public class VirtualSign extends VirtualSignStore {
     private final VirtualLines defaultlines;
     private HashSet<VirtualLines> outofrange = new HashSet<VirtualLines>();
     private final ToggledState loaded = new ToggledState(false);
-    private int signcheckcounter = 0;
+    private int signcheckcounter;
+    private static int signcheckcounterinitial = 0;
+    private static final int SIGN_CHECK_INTERVAL = 100;
 
     protected VirtualSign(BlockLocation location, String[] lines) {
         this.location = location;
@@ -59,6 +61,7 @@ public class VirtualSign extends VirtualSignStore {
         }
         this.oldlines = LogicUtil.cloneArray(lines);
         this.defaultlines = new VirtualLines(lines);
+        this.initCheckCounter();
     }
 
     protected VirtualSign(BlockLocation location, Sign sign) {
@@ -72,6 +75,16 @@ public class VirtualSign extends VirtualSignStore {
         }
         this.oldlines = LogicUtil.cloneArray(lines);
         this.defaultlines = new VirtualLines(lines);
+        this.initCheckCounter();
+    }
+
+    private void initCheckCounter() {
+        // By setting a check counter this way we only check a single sign every tick when possible
+        // This reduces bad tick lag that can occur otherwise
+        if (++signcheckcounterinitial >= SIGN_CHECK_INTERVAL) {
+            signcheckcounterinitial = 0;
+        }
+        this.signcheckcounter = signcheckcounterinitial;
     }
 
     public void remove() {
@@ -371,8 +384,21 @@ public class VirtualSign extends VirtualSignStore {
         }
 
         // Refresh the Sign state now and then (just in case the tile got swapped or destroyed)
-        if (signcheckcounter++ % 20 == 0) {
-            this.sign = null;
+        // Only do this for signs that have variables on them. Otherwise we don't really care.
+        // Chunk loading/unloading already takes care of the sign being loaded/unloaded
+        // So not checking all signs does not risk a memory leak
+        if (this.sign != null) {
+            boolean hasVariables = false;
+            for (int i = 0; i < VirtualLines.LINE_COUNT; i++) {
+                if (this.sign.getLine(i).indexOf('%') != -1) {
+                    hasVariables = true;
+                    break;
+                }
+            }
+            if (hasVariables && ++this.signcheckcounter >= SIGN_CHECK_INTERVAL) {
+                this.signcheckcounter = 0;
+                this.sign = null;
+            }
         }
 
         // Sanity check: is this sign still there?
