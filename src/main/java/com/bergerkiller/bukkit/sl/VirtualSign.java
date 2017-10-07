@@ -39,8 +39,10 @@ public class VirtualSign extends VirtualSignStore {
     private HashSet<VirtualLines> outofrange = new HashSet<VirtualLines>();
     private final ToggledState loaded = new ToggledState(false);
     private int signcheckcounter;
+    private boolean hasBeenVerified;
     private static int signcheckcounterinitial = 0;
     private static final int SIGN_CHECK_INTERVAL = 100;
+    private static final int SIGN_CHECK_INTERVAL_NOVAR = 400;
 
     protected VirtualSign(BlockLocation location, String[] lines) {
         this.location = location;
@@ -62,6 +64,7 @@ public class VirtualSign extends VirtualSignStore {
         this.oldlines = LogicUtil.cloneArray(lines);
         this.defaultlines = new VirtualLines(lines);
         this.initCheckCounter();
+        this.scheduleVerify();
     }
 
     protected VirtualSign(BlockLocation location, Sign sign) {
@@ -76,15 +79,19 @@ public class VirtualSign extends VirtualSignStore {
         this.oldlines = LogicUtil.cloneArray(lines);
         this.defaultlines = new VirtualLines(lines);
         this.initCheckCounter();
+        this.scheduleVerify();
     }
 
     private void initCheckCounter() {
         // By setting a check counter this way we only check a single sign every tick when possible
         // This reduces bad tick lag that can occur otherwise
-        if (++signcheckcounterinitial >= SIGN_CHECK_INTERVAL) {
-            signcheckcounterinitial = 0;
-        }
+        ++signcheckcounterinitial;
         this.signcheckcounter = signcheckcounterinitial;
+        if (this.hasVariables()) {
+            this.signcheckcounter %= SIGN_CHECK_INTERVAL;
+        } else {
+            this.signcheckcounter %= SIGN_CHECK_INTERVAL_NOVAR;
+        }
     }
 
     public void remove() {
@@ -373,6 +380,22 @@ public class VirtualSign extends VirtualSignStore {
         }
     }
 
+    private boolean hasVariables() {
+        for (String line : this.getRealLines()) {
+            if (line.indexOf('%') != -1) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Forces sign re-verification the next tick this sign is updated
+     */
+    public void scheduleVerify() {
+        this.hasBeenVerified = false;
+    }
+
     /**
      * Updates all nearby players with the live text information
      */
@@ -383,19 +406,20 @@ public class VirtualSign extends VirtualSignStore {
             return;
         }
 
+        // Force a verify after a new sign is created
+        if (!this.hasBeenVerified) {
+            this.hasBeenVerified = true;
+            this.sign = null;
+        }
+
         // Refresh the Sign state now and then (just in case the tile got swapped or destroyed)
-        // Only do this for signs that have variables on them. Otherwise we don't really care.
-        // Chunk loading/unloading already takes care of the sign being loaded/unloaded
-        // So not checking all signs does not risk a memory leak
+        // Only do this for signs that have variables on them. Otherwise check less often.
         if (this.sign != null) {
-            boolean hasVariables = false;
-            for (int i = 0; i < VirtualLines.LINE_COUNT; i++) {
-                if (this.sign.getLine(i).indexOf('%') != -1) {
-                    hasVariables = true;
-                    break;
-                }
-            }
-            if (hasVariables && ++this.signcheckcounter >= SIGN_CHECK_INTERVAL) {
+            this.signcheckcounter++;
+            if (
+                    (this.signcheckcounter == SIGN_CHECK_INTERVAL && this.hasVariables()) || 
+                    (this.signcheckcounter >= SIGN_CHECK_INTERVAL_NOVAR)
+            ) {
                 this.signcheckcounter = 0;
                 this.sign = null;
             }
