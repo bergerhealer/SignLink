@@ -137,7 +137,7 @@ public class VirtualSignStore {
         }
     }
 
-    public static void updateAll() {
+    public static void globalUpdateSignOrders() {
         // Does some housekeeping (the next tick) to clean up issues and update sign order
         // This makes multi-sign variable displays work
         if (!changedSignBlocks.isEmpty()) {
@@ -153,11 +153,6 @@ public class VirtualSignStore {
                     Variables.updateSignOrder(signBlock);
                 }
             }
-        }
-
-        // Update all the signs
-        for (VirtualSign sign : getAll()) {
-            sign.update();
         }
     }
 

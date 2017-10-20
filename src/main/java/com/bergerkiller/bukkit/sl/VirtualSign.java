@@ -322,10 +322,32 @@ public class VirtualSign extends VirtualSignStore {
         }
         if (this.sign == null) {
             this.sign = BlockUtil.getSign(this.getBlock());
-        }
-        if (this.sign == null || this.sign.getLines() == null) {
-            this.remove();
-            return false;
+            if (this.sign.getLines() == null) {
+                this.sign = null;
+            }
+
+            if (this.sign == null) {
+                // Sign is gone. Remove it.
+                this.remove();
+                return false;
+            } else {
+                // Check for changes to the text on the sign (external cause)
+                for (int i = 0; i < 4; i++) {
+                    if (!this.oldlines[i].equals(this.sign.getLine(i))) {
+                        Block signblock = this.getBlock();
+                        String varname = Variables.parseVariableName(this.oldlines[i]);
+                        if (varname != null) {
+                            Variables.get(varname).removeLocation(signblock, i);
+                        }
+                        this.oldlines[i] = this.sign.getLine(i);
+                        this.setLine(i, this.oldlines[i]);
+                        varname = Variables.parseVariableName(this.oldlines[i]);
+                        if (varname != null) {
+                            Variables.get(varname).addLocation(signblock, i);
+                        }
+                    }
+                }
+            }
         }
         return true;
     }
@@ -401,7 +423,6 @@ public class VirtualSign extends VirtualSignStore {
      */
     public void update() {
         // Check whether the area this sign is at, is loaded
-        this.setLoaded(this.location.isLoaded());
         if (!this.isLoaded()) {
             return;
         }
@@ -425,26 +446,14 @@ public class VirtualSign extends VirtualSignStore {
             }
         }
 
+        // When the sign is re-loaded, make sure to also refresh the isLoaded state just in case
+        if (this.sign == null) {
+            this.setLoaded(this.location.isLoaded());
+        }
+
         // Sanity check: is this sign still there?
         if (!this.validate()) {
             return;
-        }
-
-        // Real-time changes to the text (external cause)
-        for (int i = 0; i < 4; i++) {
-            if (!this.oldlines[i].equals(this.sign.getLine(i))) {
-                Block signblock = this.getBlock();
-                String varname = Variables.parseVariableName(this.oldlines[i]);
-                if (varname != null) {
-                    Variables.get(varname).removeLocation(signblock, i);
-                }
-                this.oldlines[i] = this.sign.getLine(i);
-                this.setLine(i, this.oldlines[i]);
-                varname = Variables.parseVariableName(this.oldlines[i]);
-                if (varname != null) {
-                    Variables.get(varname).addLocation(signblock, i);
-                }
-            }
         }
 
         // Send updated sign text to nearby players

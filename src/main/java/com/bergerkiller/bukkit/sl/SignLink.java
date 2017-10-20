@@ -13,6 +13,7 @@ import org.bukkit.World;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import com.bergerkiller.bukkit.common.config.ConfigurationNode;
 import com.bergerkiller.bukkit.common.config.FileConfiguration;
@@ -41,6 +42,7 @@ public class SignLink extends PluginBase {
     private SimpleDateFormat dateFormat;
     private SimpleDateFormat timeFormat;
     private Task updatetask;
+    private Task updateordertask;
     private Task timetask;
 
     @Override
@@ -113,38 +115,13 @@ public class SignLink extends PluginBase {
         updateSigns = true;
 
         //General %time% and %date% update thread
-        timetask = new Task(this) {
-            private long prevtpstime = System.currentTimeMillis();
-            public void run() {
-                Variables.get("time").set(TimeUtil.now(SignLink.plugin.timeFormat));
-                Variables.get("date").set(TimeUtil.now(SignLink.plugin.dateFormat));
-                long newtime = System.currentTimeMillis();
-                float ticktime = (float) (newtime - prevtpstime) / 5000;
-                if (ticktime == 0) ticktime = 1;
-                int per = (int) (5 / ticktime);
-                if (per > 100) per = 100;
-                Variables.get("tps").set(per + "%");
-                prevtpstime = newtime;
-                for(Player p : Bukkit.getOnlinePlayers()){
-                    VirtualSign.forcedUpdate(p);
-                }
-            }
-        }.start(5, 5);
+        timetask = new TimeUpdateTask(this).start(5, 5);
         
         loadValues();
-        
+
         //Start updating
-        updatetask = new Task(this) {
-            public void run() {
-                try {
-                    Variables.updateTickers();
-                    VirtualSign.updateAll();
-                } catch (Throwable t) {
-                    log(Level.SEVERE, "An error occured while updating the signs:");
-                    SignLink.plugin.handle(t);
-                }
-            }
-        }.start(1, 1);
+        updateordertask = new SignUpdateOrderTask(this).start(1, 1);
+        updatetask = new SignUpdateTextTask(this).start(1, 1);
 
         // Load all signs in all worlds already loaded right now
         for (World world : WorldUtil.getWorlds()) {
@@ -161,6 +138,7 @@ public class SignLink extends PluginBase {
     public void disable() {
         Task.stop(timetask);
         Task.stop(updatetask);
+        Task.stop(updateordertask);
 
         // Save sign locations to file
         // No longer used.
@@ -527,5 +505,64 @@ public class SignLink extends PluginBase {
             sender.sendMessage(ChatColor.YELLOW + "Use /help variable for command help");
         }
          return true;
+    }
+
+    private static class TimeUpdateTask extends Task {
+        private long prevtpstime = System.currentTimeMillis();
+
+        public TimeUpdateTask(JavaPlugin plugin) {
+            super(plugin);
+        }
+
+        @Override
+        public void run() {
+            Variables.get("time").set(TimeUtil.now(SignLink.plugin.timeFormat));
+            Variables.get("date").set(TimeUtil.now(SignLink.plugin.dateFormat));
+            long newtime = System.currentTimeMillis();
+            float ticktime = (float) (newtime - prevtpstime) / 5000;
+            if (ticktime == 0) ticktime = 1;
+            int per = (int) (5 / ticktime);
+            if (per > 100) per = 100;
+            Variables.get("tps").set(per + "%");
+            prevtpstime = newtime;
+            for(Player p : Bukkit.getOnlinePlayers()){
+                VirtualSign.forcedUpdate(p);
+            }
+        }
+    }
+
+    private static class SignUpdateOrderTask extends Task {
+        public SignUpdateOrderTask(JavaPlugin plugin) {
+            super(plugin);
+        }
+
+        @Override
+        public void run() {
+            try {
+                VirtualSignStore.globalUpdateSignOrders();
+            } catch (Throwable t) {
+                SignLink.plugin.log(Level.SEVERE, "An error occured while updating sign order:");
+                SignLink.plugin.handle(t);
+            }
+        }
+    }
+
+    private static class SignUpdateTextTask extends Task {
+        public SignUpdateTextTask(JavaPlugin plugin) {
+            super(plugin);
+        }
+
+        @Override
+        public void run() {
+            try {
+                Variables.updateTickers();
+                for (VirtualSign sign : VirtualSignStore.getAll()) {
+                    sign.update();
+                }
+            } catch (Throwable t) {
+                SignLink.plugin.log(Level.SEVERE, "An error occured while updating sign text:");
+                SignLink.plugin.handle(t);
+            }
+        }
     }
 }
