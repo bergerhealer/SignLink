@@ -322,7 +322,7 @@ public class VirtualSign extends VirtualSignStore {
         }
         if (this.sign == null) {
             this.sign = BlockUtil.getSign(this.getBlock());
-            if (this.sign.getLines() == null) {
+            if (this.sign != null && this.sign.getLines() == null) {
                 this.sign = null;
             }
 
