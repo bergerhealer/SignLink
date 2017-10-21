@@ -18,7 +18,9 @@ import org.bukkit.event.block.SignChangeEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
+import org.bukkit.event.world.ChunkUnloadEvent;
 import org.bukkit.event.world.WorldLoadEvent;
+import org.bukkit.event.world.WorldUnloadEvent;
 
 import com.bergerkiller.bukkit.common.MessageBuilder;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
@@ -122,7 +124,7 @@ public class SLListener implements Listener, PacketListener {
         message.send(event.getPlayer());
     }
 
-    public void refreshBlockStates(Collection<BlockState> blockStates) {
+    public void loadSigns(Collection<BlockState> blockStates) {
         try {
             for (BlockState state : blockStates) {
                 if (state instanceof Sign) {
@@ -161,14 +163,32 @@ public class SLListener implements Listener, PacketListener {
         }
     }
 
+    public void unloadSigns(Collection<BlockState> blockStates) {
+        for (BlockState state : blockStates) {
+            if (state instanceof Sign) {
+                VirtualSign.remove(state.getBlock());
+            }
+        }
+    }
+
     @EventHandler(priority = EventPriority.MONITOR)
     public void onChunkLoad(ChunkLoadEvent event) {
-        refreshBlockStates(WorldUtil.getBlockStates(event.getChunk()));
+        loadSigns(WorldUtil.getBlockStates(event.getChunk()));
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onWorldLoad(WorldLoadEvent event) {
-        refreshBlockStates(WorldUtil.getBlockStates(event.getWorld()));
+        loadSigns(WorldUtil.getBlockStates(event.getWorld()));
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onChunkUnload(ChunkUnloadEvent event) {
+        unloadSigns(WorldUtil.getBlockStates(event.getChunk()));
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onWorldUnload(WorldUnloadEvent event) {
+        unloadSigns(WorldUtil.getBlockStates(event.getWorld()));
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

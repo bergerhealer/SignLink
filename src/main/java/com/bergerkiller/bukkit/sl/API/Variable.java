@@ -12,6 +12,7 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 
+import com.bergerkiller.bukkit.common.BlockLocation;
 import com.bergerkiller.bukkit.common.utils.BlockUtil;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
@@ -373,16 +374,18 @@ public class Variable implements VariableValue {
     }
 
     public boolean removeLocation(Block signblock, int lineAt) {
+        return removeLocation(new BlockLocation(signblock), lineAt);
+    }
+
+    public boolean removeLocation(BlockLocation signblock, int lineAt) {
         boolean rem = false;
         Iterator<LinkedSign> iter = this.boundTo.iterator();
         while (iter.hasNext()) {
             LinkedSign sign = iter.next();
-            if (BlockUtil.equals(sign.getStartBlock(), signblock)) {
-                if (sign.line == lineAt || lineAt == -1) {
-                    if (removeLocation(sign, false)) {
-                        iter.remove();
-                        rem = true;
-                    }
+            if (sign.location.equals(signblock) && (sign.line == lineAt || lineAt == -1)) {
+                if (removeLocation(sign, false)) {
+                    iter.remove();
+                    rem = true;
                 }
             }
         }
@@ -390,6 +393,10 @@ public class Variable implements VariableValue {
     }
 
     public boolean removeLocation(Block signblock) {
+        return this.removeLocation(signblock, -1);
+    }
+
+    public boolean removeLocation(BlockLocation signblock) {
         return this.removeLocation(signblock, -1);
     }
 

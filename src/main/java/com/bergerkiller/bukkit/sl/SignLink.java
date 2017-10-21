@@ -125,7 +125,7 @@ public class SignLink extends PluginBase {
 
         // Load all signs in all worlds already loaded right now
         for (World world : WorldUtil.getWorlds()) {
-            listener.refreshBlockStates(WorldUtil.getBlockStates(world));
+            listener.loadSigns(WorldUtil.getBlockStates(world));
         }
 
         // Metrics

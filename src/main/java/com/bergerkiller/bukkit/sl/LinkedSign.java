@@ -95,7 +95,7 @@ public class LinkedSign {
             return;
         }
         for (VirtualSign sign : signs) {
-            if (!sign.isLoaded()) {
+            if (!sign.loadSign()) {
                 return;
             }
         }
@@ -134,7 +134,7 @@ public class LinkedSign {
     private boolean validateSigns() {
         if (!this.displaySigns.isEmpty()) {
             for (VirtualSign sign : this.displaySigns) {
-                if (!sign.validate()) {
+                if (!sign.loadSign()) {
                     return false;
                 }
             }

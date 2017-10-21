@@ -13,6 +13,7 @@ import com.bergerkiller.bukkit.common.BlockLocation;
 import com.bergerkiller.bukkit.common.Task;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.collections.BlockMap;
+import com.bergerkiller.bukkit.common.utils.BlockUtil;
 import com.bergerkiller.bukkit.common.utils.MaterialUtil;
 import com.bergerkiller.bukkit.sl.API.Variable;
 import com.bergerkiller.bukkit.sl.API.Variables;
@@ -38,9 +39,8 @@ public class VirtualSignStore {
         if (virtualSigns == null) {
             return null;
         }
-        BlockLocation loc = new BlockLocation(block);
-        VirtualSign vsign = new VirtualSign(loc, lines);
-        virtualSigns.put(loc, vsign);
+        VirtualSign vsign = new VirtualSign(block, lines);
+        virtualSigns.put(vsign.getPosition(), vsign);
         return vsign;
     }
 
@@ -48,14 +48,18 @@ public class VirtualSignStore {
         if (virtualSigns == null) {
             return null;
         }
-        BlockLocation loc = new BlockLocation(sign.getBlock());
-        VirtualSign vsign = new VirtualSign(loc, sign);
-        virtualSigns.put(loc, vsign);
+        VirtualSign vsign = new VirtualSign(sign);
+        virtualSigns.put(vsign.getPosition(), vsign);
         return vsign;
     }
 
     public static VirtualSign add(Block signBlock) {
-        return add(signBlock, (String[]) null);
+        Sign sign = BlockUtil.getSign(signBlock);
+        if (sign == null) {
+            return null;
+        } else {
+            return add(sign);
+        }
     }
 
     public static synchronized VirtualSign get(Location at) {
@@ -87,7 +91,7 @@ public class VirtualSignStore {
         }
         if (MaterialUtil.ISSIGN.get(b)) {
             VirtualSign sign = virtualSigns.get(b);
-            if (sign == null || !sign.validate()) {
+            if (sign == null || !sign.loadSign()) {
                 sign = add(b);
             }
             return sign;
@@ -119,6 +123,16 @@ public class VirtualSignStore {
      * @return True if a Virtual Sign was removed, False if not
      */
     public static synchronized boolean remove(Block signBlock) {
+        return remove(new BlockLocation(signBlock));
+    }
+
+    /**
+     * Removes a Virtual Sign from the storage.
+     * 
+     * @param signBlock to remove
+     * @return True if a Virtual Sign was removed, False if not
+     */
+    public static synchronized boolean remove(BlockLocation signBlock) {
         if (virtualSigns == null || virtualSigns.remove(signBlock) == null) {
             return false;
         }
@@ -224,7 +238,7 @@ public class VirtualSignStore {
         if (vsign == null) {
             vsign = add(sign);
         }
-        if (vsign.validate(sign)) {
+        if (vsign != null && vsign.loadSign(sign)) {
             changedSignBlocks.add(new BlockLocation(signBlock));
         }
         return vsign;
