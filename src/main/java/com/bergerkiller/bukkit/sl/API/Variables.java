@@ -117,8 +117,23 @@ public class Variables {
         if (var == null) {
             var = new Variable("%" + name + "%", name);
             variables.put(name, var);
+
+            // If PAPI is enabled, initialize the variable values
+            if (SignLink.plugin.papi != null) {
+                SignLink.plugin.papi.refreshVariableForAll(var);
+            }
         }
         return var;
+    }
+
+    /**
+     * Gets a variable of the given name. Returns null if it does not exist.
+     * 
+     * @param name of the variable
+     * @return the Variable
+     */
+    public static synchronized Variable getIfExists(String name) {
+        return variables.get(name);
     }
 
     /**

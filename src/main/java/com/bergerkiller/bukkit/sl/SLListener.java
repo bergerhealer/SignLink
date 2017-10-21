@@ -17,6 +17,7 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.SignChangeEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.event.world.ChunkUnloadEvent;
 import org.bukkit.event.world.WorldLoadEvent;
@@ -29,6 +30,7 @@ import com.bergerkiller.bukkit.common.events.PacketSendEvent;
 import com.bergerkiller.bukkit.common.protocol.CommonPacket;
 import com.bergerkiller.bukkit.common.protocol.PacketListener;
 import com.bergerkiller.bukkit.common.protocol.PacketType;
+import com.bergerkiller.bukkit.common.utils.CommonUtil;
 import com.bergerkiller.bukkit.common.utils.StringUtil;
 import com.bergerkiller.bukkit.common.utils.WorldUtil;
 import com.bergerkiller.bukkit.sl.API.Variable;
@@ -199,9 +201,24 @@ public class SLListener implements Listener, PacketListener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerJoin(PlayerJoinEvent event) {
         final Player p = event.getPlayer();
+        if (SignLink.plugin.papi != null) {
+            SignLink.plugin.papi.refreshVariables(p);
+        }
         Variables.get("playername").forPlayer(p).set(p.getName());
     }
 
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPlayerTeleport(PlayerTeleportEvent event) {
+        if (SignLink.plugin.papi != null) {
+            final Player p = event.getPlayer();
+            CommonUtil.nextTick(new Runnable() {
+                public void run() {
+                    SignLink.plugin.papi.refreshVariables(p);
+                }
+            });
+        }
+    }
+    
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerQuit(PlayerQuitEvent event) {
         VirtualSign.invalidateAll(event.getPlayer());

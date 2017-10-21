@@ -65,10 +65,6 @@ public class LinkedSign {
         return SignDirection.NONE;
     }
 
-    public void updateText(boolean wrapAround, String... forplayers){
-        setText(this.oldtext, wrapAround, forplayers);
-    }
-
     /**
      * Gets the full line of text this LinkedSign currently displays
      * 

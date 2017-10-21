@@ -2,6 +2,7 @@ package com.bergerkiller.bukkit.sl;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -13,6 +14,7 @@ import org.bukkit.World;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import com.bergerkiller.bukkit.common.config.ConfigurationNode;
@@ -34,6 +36,7 @@ import com.bergerkiller.bukkit.sl.API.Ticker;
 import com.bergerkiller.bukkit.sl.API.Variable;
 import com.bergerkiller.bukkit.sl.API.VariableValue;
 import com.bergerkiller.bukkit.sl.API.Variables;
+import com.bergerkiller.bukkit.sl.PAPI.PlaceholderAPIHandler;
 
 public class SignLink extends PluginBase {
     public static SignLink plugin;
@@ -44,6 +47,11 @@ public class SignLink extends PluginBase {
     private Task updatetask;
     private Task updateordertask;
     private Task timetask;
+    public PlaceholderAPIHandler papi = null;
+    private boolean papi_enabled = false;
+    private boolean papi_show_on_signs = false;
+    private List<String> papi_auto_variables = Collections.emptyList();
+    private Task papi_auto_task = null;
 
     @Override
     public int getMinimumLibVersion() {
@@ -77,6 +85,18 @@ public class SignLink extends PluginBase {
             dateFormat = "yyyy.MM.dd";
             this.dateFormat = new SimpleDateFormat(dateFormat);
         }
+
+        // PlaceholderAPI
+        config.setHeader("PlaceholderAPI", "Sets the settings for the PlaceholderAPI plugin. Only applies when detected.");
+        ConfigurationNode papiConfig = config.getNode("PlaceholderAPI");
+        papiConfig.setHeader("enabled", "Sets whether PlaceholderAPI variables are handled by SignLink");
+        this.papi_enabled = papiConfig.get("enabled", true);
+        papiConfig.setHeader("showOnSigns", "Whether PlaceholderAPI variables are detected and displayed on signs");
+        papiConfig.addHeader("showOnSigns", "When disabled, only SignLink variables are made available within PlaceholderAPI");
+        this.papi_show_on_signs = papiConfig.get("showOnSigns", true);
+        papiConfig.setHeader("autoUpdateVariables", "Names of PlaceholderAPI variables that will be automatically updated every tick");
+        papiConfig.addHeader("autoUpdateVariables", "Note that this induces a potential overhead for some plugin-defined variables");
+        this.papi_auto_variables = papiConfig.getList("autoUpdateVariables", String.class);
         config.save();
 
         VirtualSign.init();
@@ -139,6 +159,7 @@ public class SignLink extends PluginBase {
         Task.stop(timetask);
         Task.stop(updatetask);
         Task.stop(updateordertask);
+        Task.stop(papi_auto_task);
 
         // Save sign locations to file
         // No longer used.
@@ -250,6 +271,35 @@ public class SignLink extends PluginBase {
     }
 
     @Override
+    public void updateDependency(Plugin plugin, String pluginName, boolean enabled) {
+        if (pluginName.equals("PlaceholderAPI")) {
+            if (enabled && this.papi_enabled) {
+                try {
+                    this.papi = new PlaceholderAPIHandler(this);
+                    this.papi.setShowOnSigns(this.papi_show_on_signs);
+                    this.papi.enable();
+                    this.papi_auto_task = new PlaceholderAPIAutoUpdateTask(this).start(1, 1);
+                } catch (Throwable t) {
+                    this.handle(t);
+                    this.papi = null;
+                }
+            } else if (this.papi != null) {
+                try {
+                    this.papi.disable();
+                } catch (Throwable t) {
+                    this.handle(t);
+                }
+                this.papi = null;
+                Task.stop(this.papi_auto_task);
+                this.papi_auto_task = null;
+            }
+        }
+        if (this.papi != null) {
+            this.papi.refreshPlugins();
+        }
+    }
+
+    @Override
     public boolean command(CommandSender sender, String cmdLabel, String[] args) {
         // Toggle sign updating on/off
         if (cmdLabel.equalsIgnoreCase("togglesignupdate")) {
@@ -332,6 +382,20 @@ public class SignLink extends PluginBase {
                 } else {
                     sender.sendMessage(ChatColor.GREEN + Integer.toString(allVars.size()) + " variables have been deleted!");
                 }
+            }
+            return true;
+        }
+
+        // Reloads the variable values based on PlaceholderAPI for all players on the server
+        if (cmdLabel.equalsIgnoreCase("refreshpapi")) {
+            Permission.REFRESHPAPI.handle(sender);
+            if (this.papi == null) {
+                sender.sendMessage(ChatColor.RED + "PlaceholderAPI is not installed or enabled in SignLink");
+            } else {
+                for (Player player : Bukkit.getOnlinePlayers()) {
+                    this.papi.refreshVariables(player);
+                }
+                sender.sendMessage(ChatColor.GREEN + "All PlaceholderAPI variables have been updated!");
             }
             return true;
         }
@@ -562,6 +626,22 @@ public class SignLink extends PluginBase {
             } catch (Throwable t) {
                 SignLink.plugin.log(Level.SEVERE, "An error occured while updating sign text:");
                 SignLink.plugin.handle(t);
+            }
+        }
+    }
+
+    private static class PlaceholderAPIAutoUpdateTask extends Task {
+
+        public PlaceholderAPIAutoUpdateTask(JavaPlugin plugin) {
+            super(plugin);
+        }
+
+        @Override
+        public void run() {
+            if (plugin.papi != null) {
+                for (String varName : plugin.papi_auto_variables) {
+                    plugin.papi.refreshVariableForAll(Variables.get(varName));
+                }
             }
         }
     }

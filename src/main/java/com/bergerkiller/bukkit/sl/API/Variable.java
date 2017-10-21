@@ -206,12 +206,6 @@ public class Variable implements VariableValue {
      * @param sign to update
      */
     public void update(LinkedSign sign) {
-//        String[] forplayers = new String[Bukkit.getOnlinePlayers().size()];
-//        int i = 0;
-//        for(Player p : Bukkit.getOnlinePlayers()) {
-//            forplayers[i] = p.getName();
-//            i++;
-//        }
         sign.setText(this.defaultticker.current(), this.defaultticker.hasWrapAround());
         for (PlayerVariable var : forAll()) {
             sign.setText(var.getTicker().current(), var.getTicker().hasWrapAround(), var.getPlayer());
