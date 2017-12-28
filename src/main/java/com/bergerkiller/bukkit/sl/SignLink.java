@@ -460,7 +460,7 @@ public class SignLink extends PluginBase {
             if (args.length == 0) {
                 sender.sendMessage(ChatColor.YELLOW + "Default variable value emptied!");
             } else {
-                sender.sendMessage(ChatColor.YELLOW + "Default variable value set to '" + value + "'!");
+                sender.sendMessage(ChatColor.YELLOW + "Default variable value set to '" + value + ChatColor.RESET + ChatColor.YELLOW + "'!");
             }
         } else if (cmdLabel.equalsIgnoreCase("set")) {
             if (args.length == 0) {
@@ -477,7 +477,7 @@ public class SignLink extends PluginBase {
                 } else {
                     var.group().set(value);
                 }
-                sender.sendMessage(ChatColor.YELLOW + "Variable value set to '" + value + "'!");
+                sender.sendMessage(ChatColor.YELLOW + "Variable value set to '" + value + ChatColor.RESET + ChatColor.YELLOW + "'!");
             }
         } else if (cmdLabel.equalsIgnoreCase("clear")) {
             if (var.global()) {
