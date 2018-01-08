@@ -184,6 +184,7 @@ public class LinkedSign {
         if (start == null) {
             for (VirtualSign sign : this.displaySigns) {
                 sign.restoreRealLine(this.line);
+                sign.setMidLinkSign(false);
             }
             this.displaySigns.clear();
             return this.displaySigns;
@@ -232,10 +233,8 @@ public class LinkedSign {
                         if (realline.charAt(index1 - 1) != ' ') break;
                         if (realline.charAt(index2 + 1) != ' ') break;
                     }
-                    this.displaySigns.add(sign);
-                    signsRemoved.remove(sign);
-                    break;
                 }
+                sign.setMidLinkSign(true);
                 this.displaySigns.add(sign);
                 signsRemoved.remove(sign);
             }

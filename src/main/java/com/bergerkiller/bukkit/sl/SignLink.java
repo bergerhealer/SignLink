@@ -63,7 +63,7 @@ public class SignLink extends PluginBase {
         plugin = this;
         final SLListener listener = new SLListener();
         this.register((Listener) listener);
-        this.register((PacketListener) listener, PacketType.OUT_TILE_ENTITY_DATA, PacketType.OUT_UPDATE_SIGN);
+        this.register((PacketListener) listener, PacketType.OUT_TILE_ENTITY_DATA, PacketType.OUT_UPDATE_SIGN, PacketType.OUT_MAP_CHUNK);
         this.register("togglesignupdate", "reloadsignlink", "variable");
 
         FileConfiguration config = new FileConfiguration(this);
@@ -589,9 +589,6 @@ public class SignLink extends PluginBase {
             if (per > 100) per = 100;
             Variables.get("tps").set(per + "%");
             prevtpstime = newtime;
-            for(Player p : Bukkit.getOnlinePlayers()){
-                VirtualSign.forcedUpdate(p);
-            }
         }
     }
 
