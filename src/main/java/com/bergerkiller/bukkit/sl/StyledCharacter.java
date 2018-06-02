@@ -25,9 +25,25 @@ public class StyledCharacter {
             this.width = 0;
         } else if (this.character == '\0') {
             this.width = 1;
+        } else if (isBold()) {
+            this.width = StringUtil.getWidth(this.character) + ( (this.character == ' ') ? 3 : 2 );
         } else {
             this.width = StringUtil.getWidth(this.character) + ( (this.character == ' ') ? 2 : 1 );
         }
+    }
+
+    /**
+     * Whether the bold format is used
+     * 
+     * @return True if bold
+     */
+    public boolean isBold() {
+        for (ChatColor format : formats) {
+            if (format == ChatColor.BOLD) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
