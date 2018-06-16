@@ -416,21 +416,19 @@ public class VirtualSign extends VirtualSignStore {
             this.sign = null;
         }
 
-        // No variables? Do nothing
-        if (!SignLink.plugin.discoverSignChanges() && !this.hasVariables() && !this.isMidLinkSign) {
-            return;
-        }
-
         // Refresh the Sign state now and then (just in case the tile got swapped or destroyed)
         // Only do this for signs that have variables on them. Otherwise check less often.
+        // When disabled, don't do a refresh of the sign at all when no variables are displayed.
         if (this.sign != null) {
             this.signcheckcounter++;
-            if (
-                    (this.signcheckcounter == SIGN_CHECK_INTERVAL && this.hasVariables()) || 
-                    (this.signcheckcounter >= SIGN_CHECK_INTERVAL_NOVAR)
-            ) {
+            if (this.signcheckcounter == SIGN_CHECK_INTERVAL && this.hasVariables()) {
                 this.signcheckcounter = 0;
                 this.sign = null;
+            } else if (this.signcheckcounter >= SIGN_CHECK_INTERVAL_NOVAR) {
+                this.signcheckcounter = 0;
+                if (SignLink.plugin.discoverSignChanges()) {
+                    this.sign = null;
+                }
             }
         }
 
