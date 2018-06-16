@@ -417,7 +417,7 @@ public class VirtualSign extends VirtualSignStore {
         }
 
         // No variables? Do nothing
-        if (!SignLink.plugin.discoverSignChanges() && !this.hasVariables()) {
+        if (!SignLink.plugin.discoverSignChanges() && !this.hasVariables() && !this.isMidLinkSign) {
             return;
         }
 
