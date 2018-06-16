@@ -50,12 +50,24 @@ public class SignLink extends PluginBase {
     public PlaceholderAPIHandler papi = null;
     private boolean papi_enabled = false;
     private boolean papi_show_on_signs = false;
+    private boolean discover_sign_changes = false;
     private List<String> papi_auto_variables = Collections.emptyList();
     private Task papi_auto_task = null;
 
     @Override
     public int getMinimumLibVersion() {
         return Common.VERSION;
+    }
+
+    /**
+     * Whether all signs on the server are routinely checked for sign text changes.
+     * When a sign suddenly has a variable displayed on it, this will make it change that
+     * into a variable.
+     * 
+     * @return True when sign changes are automatically discovered
+     */
+    public boolean discoverSignChanges() {
+        return discover_sign_changes;
     }
 
     @Override
@@ -85,6 +97,11 @@ public class SignLink extends PluginBase {
             dateFormat = "yyyy.MM.dd";
             this.dateFormat = new SimpleDateFormat(dateFormat);
         }
+
+        config.setHeader("discoverSignChanges", "Whether all signs on the server are routinely checked for changes in text");
+        config.addHeader("discoverSignChanges", "When they suddenly display a variable, this variable is swapped out");
+        config.addHeader("discoverSignChanges", "Enabling this may have a negative effect on server tick rate");
+        this.discover_sign_changes = config.get("discoverSignChanges", false);
 
         // PlaceholderAPI
         config.setHeader("PlaceholderAPI", "Sets the settings for the PlaceholderAPI plugin. Only applies when detected.");

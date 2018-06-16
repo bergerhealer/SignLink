@@ -416,6 +416,11 @@ public class VirtualSign extends VirtualSignStore {
             this.sign = null;
         }
 
+        // No variables? Do nothing
+        if (!SignLink.plugin.discoverSignChanges() && !this.hasVariables()) {
+            return;
+        }
+
         // Refresh the Sign state now and then (just in case the tile got swapped or destroyed)
         // Only do this for signs that have variables on them. Otherwise check less often.
         if (this.sign != null) {
