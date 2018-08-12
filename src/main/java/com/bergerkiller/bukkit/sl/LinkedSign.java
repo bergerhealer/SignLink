@@ -152,6 +152,7 @@ public class LinkedSign {
         }
 
         // Check if there is another wall sign attached to the same block as the current one
+        // MC 1.13 note: both legacy and new are called WALL_SIGN, so in this instance, it will work!
         if (from.getType() == Material.WALL_SIGN) {
             BlockFace attachedSide = BlockUtil.getAttachedFace(from);
             Block attachedBlock = from.getRelative(attachedSide);
