@@ -53,6 +53,7 @@ public class SignLink extends PluginBase {
     private boolean discover_sign_changes = false;
     private List<String> papi_auto_variables = Collections.emptyList();
     private Task papi_auto_task = null;
+    private final SLListener listener = new SLListener();
 
     @Override
     public int getMinimumLibVersion() {
@@ -73,9 +74,9 @@ public class SignLink extends PluginBase {
     @Override
     public void enable() {
         plugin = this;
-        final SLListener listener = new SLListener();
-        this.register((Listener) listener);
-        this.register((PacketListener) listener, PacketType.OUT_TILE_ENTITY_DATA, PacketType.OUT_UPDATE_SIGN, PacketType.OUT_MAP_CHUNK);
+
+        this.register((Listener) this.listener);
+        this.register((PacketListener) this.listener, PacketType.OUT_TILE_ENTITY_DATA, PacketType.OUT_UPDATE_SIGN, PacketType.OUT_MAP_CHUNK);
         this.register("togglesignupdate", "reloadsignlink", "variable");
 
         FileConfiguration config = new FileConfiguration(this);
@@ -161,9 +162,7 @@ public class SignLink extends PluginBase {
         updatetask = new SignUpdateTextTask(this).start(1, 1);
 
         // Load all signs in all worlds already loaded right now
-        for (World world : WorldUtil.getWorlds()) {
-            listener.loadSigns(WorldUtil.getBlockStates(world));
-        }
+        this.loadSigns();
 
         // Metrics
         if (this.hasMetrics()) {
@@ -205,6 +204,12 @@ public class SignLink extends PluginBase {
 
         Variables.deinit();
         VirtualSign.deinit();
+    }
+
+    public void loadSigns() {
+        for (World world : WorldUtil.getWorlds()) {
+            this.listener.loadSigns(WorldUtil.getBlockStates(world));
+        }
     }
 
     public void loadValues() {
@@ -333,6 +338,7 @@ public class SignLink extends PluginBase {
         if (cmdLabel.equalsIgnoreCase("reloadsignlink")) {
             Permission.RELOAD.handle(sender);
             loadValues();
+            loadSigns();
             sender.sendMessage(ChatColor.GREEN + "SignLink reloaded the Variable values");
             return true;
         }
