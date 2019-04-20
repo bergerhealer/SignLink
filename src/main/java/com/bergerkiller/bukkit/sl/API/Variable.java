@@ -88,7 +88,7 @@ public class Variable implements VariableValue {
         if (playername != null) {
             PlayerVariable pvar = playervariables.get(playername.toLowerCase());
             if (pvar != null) {
-                pvar.get();
+                return pvar.get();
             }
         }
         return this.getDefault();
