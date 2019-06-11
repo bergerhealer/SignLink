@@ -111,7 +111,7 @@ public class SLListener implements Listener, PacketListener {
         VirtualSign sign = VirtualSign.get(world, position);
         if (sign != null) {
             sign.scheduleVerify();
-            sign.update();
+            // sign.update();
             sign.applyToPacket(event.getPlayer(), packet);
         }
     }
