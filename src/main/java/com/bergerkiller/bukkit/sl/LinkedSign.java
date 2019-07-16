@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 
+import org.bukkit.Chunk;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -11,8 +12,12 @@ import org.bukkit.block.BlockFace;
 import com.bergerkiller.bukkit.common.BlockLocation;
 import com.bergerkiller.bukkit.common.ToggledState;
 import com.bergerkiller.bukkit.common.utils.BlockUtil;
+import com.bergerkiller.bukkit.common.utils.ChunkUtil;
 import com.bergerkiller.bukkit.common.utils.FaceUtil;
 import com.bergerkiller.bukkit.common.utils.MaterialUtil;
+import com.bergerkiller.bukkit.common.utils.MathUtil;
+import com.bergerkiller.bukkit.common.utils.WorldUtil;
+import com.bergerkiller.bukkit.common.wrappers.BlockData;
 
 /**
  * Links multiple (Virtual) Signs together to create a single, long, horizontal line of text which can be altered
@@ -139,6 +144,24 @@ public class LinkedSign {
         return false;
     }
 
+    private BlockData getBlockDataIfLoaded(Block block, int curr_chunkX, int curr_chunkZ) {
+        int next_chunkX = MathUtil.toChunk(block.getX());
+        int next_chunkZ = MathUtil.toChunk(block.getZ());
+        if (next_chunkX != curr_chunkX || next_chunkZ != curr_chunkZ) {
+            Chunk nextChunk = WorldUtil.getChunk(block.getWorld(), next_chunkX, next_chunkZ);
+            if (nextChunk == null) {
+                // Not loaded (yet)
+                return BlockData.AIR;
+            } else {
+                // Loaded, query using Chunk
+                return ChunkUtil.getBlockData(nextChunk, block.getX(), block.getY(), block.getZ());
+            }
+        } else {
+            // Simple
+            return WorldUtil.getBlockData(block);
+        }
+    }
+
     private Block nextSign(Block from) {
         // Check if there is a sign to the left/right of the current one (direction)
         BlockFace from_facing = BlockUtil.getFacing(from);
@@ -146,14 +169,23 @@ public class LinkedSign {
         if (this.direction == SignDirection.RIGHT) {
             direction = direction.getOppositeFace();
         }
+
+        // From block chunk coordinates
+        int from_chunkX = MathUtil.toChunk(from.getX());
+        int from_chunkZ = MathUtil.toChunk(from.getZ());
+
+        // Make sure the chunk at this next block is actually loaded, when next chunk is different
         Block next = from.getRelative(direction);
-        if (MaterialUtil.ISSIGN.get(next) && BlockUtil.getFacing(next) == from_facing &&  loopCheck.add(next)) {
+        BlockData nextBlockData = getBlockDataIfLoaded(next, from_chunkX, from_chunkZ);
+
+        if (MaterialUtil.ISSIGN.get(nextBlockData) && nextBlockData.getFacingDirection() == from_facing && loopCheck.add(next)) {
             return next;
         }
 
         // Check if there is another wall sign attached to the same block as the current one
         // MC 1.13 note: both legacy and new are called WALL_SIGN, so in this instance, it will work!
-        if (from.getType() == Material.WALL_SIGN) {
+        BlockData fromBlockData = WorldUtil.getBlockData(from);
+        if (fromBlockData.isType(Material.WALL_SIGN)) {
             BlockFace attachedSide = BlockUtil.getAttachedFace(from);
             Block attachedBlock = from.getRelative(attachedSide);
             BlockFace cornerDir;
@@ -163,7 +195,9 @@ public class LinkedSign {
                 cornerDir = FaceUtil.rotate(attachedSide, -2);
             }
             next = attachedBlock.getRelative(cornerDir);
-            if (next.getType() == Material.WALL_SIGN && BlockUtil.getAttachedFace(next) == cornerDir.getOppositeFace() && loopCheck.add(next)) {
+            nextBlockData = getBlockDataIfLoaded(next, from_chunkX, from_chunkZ);
+
+            if (nextBlockData.isType(Material.WALL_SIGN) && nextBlockData.getAttachedFace() == cornerDir.getOppositeFace() && loopCheck.add(next)) {
                 return next;
             }
         }
