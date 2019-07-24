@@ -38,7 +38,7 @@ public class VirtualSign extends VirtualSignStore {
     private int signcheckcounter;
     private boolean hasBeenVerified;
     private boolean hasVariablesOnSign;
-    private boolean isMidLinkSign;
+    private boolean _isMidLinkSign;
     private static int signcheckcounterinitial = 0;
     private static final int SIGN_CHECK_INTERVAL = 100;
     private static final int SIGN_CHECK_INTERVAL_NOVAR = 400;
@@ -53,7 +53,7 @@ public class VirtualSign extends VirtualSignStore {
         this.location = new BlockLocation(signLocation);
         this.oldlines = LogicUtil.cloneArray(lines);
         this.defaultlines = new VirtualLines(this.oldlines);
-        this.isMidLinkSign = false;
+        this._isMidLinkSign = false;
         this.initCheckCounter();
         this.scheduleVerify();
     }
@@ -68,7 +68,7 @@ public class VirtualSign extends VirtualSignStore {
         this.location = new BlockLocation(sign.getBlock());
         this.oldlines = LogicUtil.cloneArray(lines);
         this.defaultlines = new VirtualLines(this.oldlines);
-        this.isMidLinkSign = false;
+        this._isMidLinkSign = false;
         this.initCheckCounter();
         this.scheduleVerify();
     }
@@ -78,7 +78,7 @@ public class VirtualSign extends VirtualSignStore {
         // This reduces bad tick lag that can occur otherwise
         ++signcheckcounterinitial;
         this.signcheckcounter = signcheckcounterinitial;
-        this.hasVariablesOnSign = this.hasVariables();
+        this.hasVariablesOnSign = this.hasVariablesRefresh();
         if (this.hasVariablesOnSign) {
             this.signcheckcounter %= SIGN_CHECK_INTERVAL;
         } else {
@@ -338,7 +338,7 @@ public class VirtualSign extends VirtualSignStore {
                 }
             }
             if (changed) {
-                this.hasVariablesOnSign = this.hasVariables();
+                this.hasVariablesOnSign = this.hasVariablesRefresh();
             }
         }
         return true;
@@ -377,8 +377,17 @@ public class VirtualSign extends VirtualSignStore {
         return "VirtualSign {" + this.getX() + ", " + this.getY() + ", " + this.getZ() + ", " + this.getWorld().getName() + "}";
     }
 
-    private boolean hasVariables() {
-        if (this.isMidLinkSign) {
+    /**
+     * Gets whether this virtual sign stores variables on it or not
+     * 
+     * @return True if variables are stored
+     */
+    public boolean hasVariables() {
+        return this.hasVariablesOnSign;
+    }
+
+    private boolean hasVariablesRefresh() {
+        if (this._isMidLinkSign) {
             return true;
         }
         for (String line : this.getRealLines()) {
@@ -397,12 +406,22 @@ public class VirtualSign extends VirtualSignStore {
     }
 
     /**
+     * Gets whether this Virtual Sign was discovered
+     * in the middle of a chain of signs displaying a variable.
+     * 
+     * @return midLink
+     */
+    public boolean isMidLinkSign() {
+        return this._isMidLinkSign;
+    }
+
+    /**
      * Declares that this sign is in the middle of a chain of signs displaying a variable.
      * 
      * @param midLink
      */
     public void setMidLinkSign(boolean midLink) {
-        this.isMidLinkSign = midLink;
+        this._isMidLinkSign = midLink;
         this.scheduleVerify();
     }
 
@@ -421,7 +440,7 @@ public class VirtualSign extends VirtualSignStore {
         // When disabled, don't do a refresh of the sign at all when no variables are displayed.
         if (this.sign != null) {
             this.signcheckcounter++;
-            if (this.signcheckcounter == SIGN_CHECK_INTERVAL && this.hasVariables()) {
+            if (this.signcheckcounter == SIGN_CHECK_INTERVAL && this.hasVariablesRefresh()) {
                 this.signcheckcounter = 0;
                 this.sign = null;
             } else if (this.signcheckcounter >= SIGN_CHECK_INTERVAL_NOVAR) {
@@ -439,7 +458,7 @@ public class VirtualSign extends VirtualSignStore {
 
         // Send updated sign text to nearby players
         //FIX: Only do this for signs with variables on them!
-        if (this.hasVariablesOnSign || this.isMidLinkSign) {
+        if (this.hasVariablesOnSign || this._isMidLinkSign) {
             for (Player player : WorldUtil.getPlayers(getWorld())) {
                 VirtualLines lines = getLines(player);
                 if (isInRange(player)) {
