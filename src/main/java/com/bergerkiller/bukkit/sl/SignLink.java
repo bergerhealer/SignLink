@@ -2,10 +2,13 @@ package com.bergerkiller.bukkit.sl;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.TimeZone;
 import java.util.logging.Level;
 
 import org.bukkit.Bukkit;
@@ -28,7 +31,6 @@ import com.bergerkiller.bukkit.common.protocol.PacketListener;
 import com.bergerkiller.bukkit.common.protocol.PacketType;
 import com.bergerkiller.bukkit.common.utils.ParseUtil;
 import com.bergerkiller.bukkit.common.utils.StringUtil;
-import com.bergerkiller.bukkit.common.utils.TimeUtil;
 import com.bergerkiller.bukkit.common.utils.WorldUtil;
 import com.bergerkiller.bukkit.sl.API.GroupVariable;
 import com.bergerkiller.bukkit.sl.API.PlayerVariable;
@@ -41,9 +43,9 @@ import com.bergerkiller.bukkit.sl.PAPI.PlaceholderAPIHandler;
 public class SignLink extends PluginBase {
     public static SignLink plugin;
     public static boolean updateSigns = false;
-    public static boolean usePermissions = false;
     private SimpleDateFormat dateFormat;
     private SimpleDateFormat timeFormat;
+    private TimeZone timeZone;
     private Task updatetask;
     private Task updateordertask;
     private Task timetask;
@@ -81,9 +83,14 @@ public class SignLink extends PluginBase {
 
         FileConfiguration config = new FileConfiguration(this);
         config.load();
+        config.setHeader("timeFormat", "Time format used when representing time in the %time% default variable");
+        config.setHeader("dateFormat", "Date format used when representing time in the %date% default variable");
+        config.setHeader("timeZone", "Time zone used for the %time% and %date% default variables");
+        config.addHeader("timeZone", "Use 'system' for the system default (JVM) time zone");
+        config.addHeader("timeZone", "A list of timezone id's can be found here: https://garygregory.wordpress.com/2013/06/18/what-are-the-java-timezone-ids/");
         String timeFormat = config.get("timeFormat", "H:mm:ss");
         String dateFormat = config.get("dateFormat", "yyyy.MM.dd");
-        usePermissions = config.get("usePermissions", false);
+        String timeZone = config.get("timeZone", "system");
         try {
             this.timeFormat = new SimpleDateFormat(timeFormat);
         } catch (IllegalArgumentException ex) {
@@ -98,6 +105,18 @@ public class SignLink extends PluginBase {
             dateFormat = "yyyy.MM.dd";
             this.dateFormat = new SimpleDateFormat(dateFormat);
         }
+        if (timeZone.equals("default") || timeZone.equals("system")) {
+            this.timeZone = TimeZone.getDefault();
+        } else {
+            this.timeZone = TimeZone.getTimeZone(timeZone);
+            if (!this.timeZone.getID().equalsIgnoreCase(timeZone)) {
+                log(Level.WARNING, "Time zone: " + timeZone + " has not been recognized!");
+                this.timeZone = TimeZone.getDefault();
+                timeZone = this.timeZone.getID();
+            }
+        }
+        this.timeFormat.setTimeZone(this.timeZone);
+        this.dateFormat.setTimeZone(this.timeZone);
 
         config.setHeader("discoverSignChanges", "Whether all signs on the server are routinely checked for changes in text");
         config.addHeader("discoverSignChanges", "When they suddenly display a variable, this variable is swapped out");
@@ -603,8 +622,9 @@ public class SignLink extends PluginBase {
 
         @Override
         public void run() {
-            Variables.get("time").set(TimeUtil.now(SignLink.plugin.timeFormat));
-            Variables.get("date").set(TimeUtil.now(SignLink.plugin.dateFormat));
+            Date time = Calendar.getInstance(SignLink.plugin.timeZone).getTime();
+            Variables.get("time").set(SignLink.plugin.timeFormat.format(time).trim());
+            Variables.get("date").set(SignLink.plugin.dateFormat.format(time).trim());
             long newtime = System.currentTimeMillis();
             float ticktime = (float) (newtime - prevtpstime) / 5000;
             if (ticktime == 0) ticktime = 1;
