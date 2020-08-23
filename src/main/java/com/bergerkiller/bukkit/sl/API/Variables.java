@@ -35,8 +35,8 @@ public class Variables {
 
     /**
      * Gets all the variables on the server.
-     * @deprecated: This method is not thread-safe.
-     * Use {@link getAll()} instead.
+     * @deprecated This method is not thread-safe.
+     * Use {@link #getAll()} instead.
      * 
      * @return Collection of all variables
      */

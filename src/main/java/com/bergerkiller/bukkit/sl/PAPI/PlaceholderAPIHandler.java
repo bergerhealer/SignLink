@@ -1,7 +1,11 @@
 package com.bergerkiller.bukkit.sl.PAPI;
 
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
+import me.clip.placeholderapi.PlaceholderAPIPlugin;
+import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -9,40 +13,37 @@ import org.bukkit.plugin.java.JavaPlugin;
 import com.bergerkiller.bukkit.sl.API.Variable;
 import com.bergerkiller.bukkit.sl.API.Variables;
 
-import me.clip.placeholderapi.PlaceholderAPI;
-import me.clip.placeholderapi.PlaceholderHook;
-
 public class PlaceholderAPIHandler {
-    private final JavaPlugin plugin;
-    private final PlaceholderHook hook;
+    private final PlaceholderExpansion hook;
     private boolean registeredSLHook;
-    private Map<String, PlaceholderHook> plugins;
+    private Set<String> identifiers;
+    private Map<String, PlaceholderExpansion> plugins;
     private boolean show_on_signs;
 
     public PlaceholderAPIHandler(JavaPlugin plugin) {
-        this.plugin = plugin;
-        this.hook = new PlaceholderAPIHook();
+        this.hook = new PlaceholderAPIHook(plugin);
         this.registeredSLHook = false;
     }
 
     public void enable() {
-        PlaceholderAPI.registerPlaceholderHook(this.plugin, this.hook);
-        if (!PlaceholderAPI.getPlaceholders().containsKey("sl")) {
-            PlaceholderAPI.registerPlaceholderHook("sl", this.hook);
+        this.hook.register();
+        if (!PlaceholderAPIPlugin.getInstance().getLocalExpansionManager().getIdentifiers().contains("sl")) {
+            this.hook.register();
             this.registeredSLHook = true;
         }
     }
 
     public void disable() {
-        PlaceholderAPI.unregisterPlaceholderHook(this.plugin);
+        this.hook.unregister();
         if (this.registeredSLHook) {
-            PlaceholderAPI.unregisterPlaceholderHook("sl");
+            this.hook.unregister();
             this.registeredSLHook = false;
         }
     }
 
     public void refreshPlugins() {
-        this.plugins = PlaceholderAPI.getPlaceholders();
+        this.plugins = PlaceholderAPIPlugin.getInstance().getLocalExpansionManager().getExpansions().stream()
+                .collect(Collectors.toMap(PlaceholderExpansion::getIdentifier, ex -> ex));
     }
 
     public void setShowOnSigns(boolean showOnSigns) {
@@ -113,14 +114,13 @@ public class PlaceholderAPIHandler {
         }
 
         String pluginName = variableName.substring(0, pluginIdx);
-        PlaceholderHook hook = this.plugins.get(pluginName);
+        PlaceholderExpansion hook = this.plugins.get(pluginName);
         if (hook == null) {
             return null;
         }
 
         String name = variableName.substring(pluginIdx + 1);
-        String result = hook.onPlaceholderRequest(player, name);
-        return result;
+        return hook.onPlaceholderRequest(player, name);
     }
 
 }
