@@ -1,7 +1,6 @@
 package com.bergerkiller.bukkit.sl.PAPI;
 
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import me.clip.placeholderapi.PlaceholderAPIPlugin;
@@ -16,7 +15,6 @@ import com.bergerkiller.bukkit.sl.API.Variables;
 public class PlaceholderAPIHandler {
     private final PlaceholderExpansion hook;
     private boolean registeredSLHook;
-    private Set<String> identifiers;
     private Map<String, PlaceholderExpansion> plugins;
     private boolean show_on_signs;
 
