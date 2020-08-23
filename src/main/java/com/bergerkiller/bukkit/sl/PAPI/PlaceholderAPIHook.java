@@ -26,7 +26,7 @@ public class PlaceholderAPIHook extends PlaceholderExpansion{
     
     @Override
     public @NotNull String getAuthor(){
-        return "berkerkiller";
+        return String.join(", ", plugin.getDescription().getAuthors());
     }
     
     @Override
