@@ -39,6 +39,8 @@ import com.bergerkiller.bukkit.sl.API.Variable;
 import com.bergerkiller.bukkit.sl.API.VariableValue;
 import com.bergerkiller.bukkit.sl.API.Variables;
 import com.bergerkiller.bukkit.sl.PAPI.PlaceholderAPIHandler;
+import com.bergerkiller.bukkit.sl.PAPI.PlaceholderAPIHandlerWithExpansions;
+import com.bergerkiller.bukkit.sl.PAPI.PlaceholderAPIHandlerWithHook;
 
 public class SignLink extends PluginBase {
     public static SignLink plugin;
@@ -315,8 +317,18 @@ public class SignLink extends PluginBase {
     public void updateDependency(Plugin plugin, String pluginName, boolean enabled) {
         if (pluginName.equals("PlaceholderAPI")) {
             if (enabled && this.papi_enabled) {
+                boolean usePAPIExpansions = false;
                 try {
-                    this.papi = new PlaceholderAPIHandler(this);
+                    Class.forName("me.clip.placeholderapi.expansion.manager.LocalExpansionManager");
+                    usePAPIExpansions = true;
+                } catch (Throwable t) {}
+
+                try {
+                    if (usePAPIExpansions) {
+                        this.papi = new PlaceholderAPIHandlerWithExpansions(this);
+                    } else {
+                        this.papi = new PlaceholderAPIHandlerWithHook(this);
+                    }
                     this.papi.setShowOnSigns(this.papi_show_on_signs);
                     this.papi.enable();
                     this.papi_auto_task = new PlaceholderAPIAutoUpdateTask(this).start(1, 1);
@@ -334,9 +346,6 @@ public class SignLink extends PluginBase {
                 Task.stop(this.papi_auto_task);
                 this.papi_auto_task = null;
             }
-        }
-        if (this.papi != null) {
-            this.papi.refreshPlugins();
         }
     }
 

@@ -5,7 +5,7 @@
 
   <groupId>com.bergerkiller.bukkit</groupId>
   <artifactId>SignLink</artifactId>
-  <version>1.15.2-v1-SNAPSHOT</version>
+  <version>1.16.4-v1-SNAPSHOT</version>
   <packaging>jar</packaging>
 
   <name>SignLink</name>
@@ -14,7 +14,7 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.serverversion>1.12-R0.1</project.serverversion>
-    <project.bkcversion>1.14.4-v2-SNAPSHOT</project.bkcversion>
+    <project.bkcversion>1.16.4-v1</project.bkcversion>
   </properties>
 
   <repositories>
@@ -62,7 +62,7 @@
     <dependency>
       <groupId>me.clip</groupId>
       <artifactId>placeholderapi</artifactId>
-      <version>2.8.2</version>
+      <version>2.10.9</version>
       <scope>provided</scope>
     </dependency>
   </dependencies>
@@ -121,8 +121,8 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.1</version>
         <configuration>
-          <source>1.7</source>
-          <target>1.7</target>
+          <source>1.8</source>
+          <target>1.8</target>
           <showWarnings>true</showWarnings>
           <showDeprecation>true</showDeprecation>
         </configuration>
