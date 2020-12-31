@@ -2,8 +2,8 @@ package com.bergerkiller.bukkit.sl;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Block;
@@ -96,11 +96,11 @@ public class VirtualSign extends VirtualSignStore {
     }
 
     public void resetLines(Player player) {
-        resetLines(player.getName());
+        resetLines(player.getName().toLowerCase());
     }
 
     public void resetLines(String playerName) {
-        playerlines.remove(playerName);
+        this.playerlines.remove(playerName);
     }
 
     public void invalidate(Player player) {
@@ -111,6 +111,13 @@ public class VirtualSign extends VirtualSignStore {
         getLines(player).setChanged();
     }
 
+    /**
+     * Gets the lines of text specific for a single player
+     *
+     * @param playerName Name of the player, must be all-lowercase.
+     *                   Specifying null will return the default lines.
+     * @return lines for this player
+     */
     public VirtualLines getLines(String playerName) {
         if (playerName == null) {
             return getLines();
@@ -124,11 +131,17 @@ public class VirtualSign extends VirtualSignStore {
         return lines;
     }
 
+    /**
+     * Gets the lines of text specific for a single player
+     *
+     * @param player Player, null to get the default lines
+     * @return lines for this player
+     */
     public VirtualLines getLines(Player player) {
         if (player == null) {
             return getLines();
         }
-        return getLines(player.getName());
+        return getLines(player.getName().toLowerCase());
     }
 
     public VirtualLines getLines() {
@@ -139,33 +152,77 @@ public class VirtualSign extends VirtualSignStore {
         getLines().set(index, value);
     }
 
-    public void setLine(int index, String value, String... players) {
+    /**
+     * Sets a single line of text on this virtual sign
+     *
+     * @param index Line index (0 - 3)
+     * @param value Value to store on the line
+     * @param forPlayerFilter Filters what players should be updated
+     */
+    public void setLine(int index, String value, VariableTextPlayerFilter forPlayerFilter) {
 //        System.out.println("Set line "+index+" to "+value+" for "+(players==null?null:players.length));
-        if (players == null || players.length == 0) {
+        if (forPlayerFilter.isAll()) {
             //Set all lines to this value at this index
             for (VirtualLines lines : playerlines.values()) {
                 lines.set(index, value);
             }
             getLines().set(index, value);
+        } else if (forPlayerFilter.isExcluding()) {
+            // All except some player names
+
+            // Make sure to first create additional by-player instances for players
+            // excluded, that are missing in the mapping
+            for (String player : forPlayerFilter.getPlayerNames()) {
+                getLines(player);
+            }
+
+            // Update all player lines that are missing from the filter
+            for (Map.Entry<String, VirtualLines> entry : playerlines.entrySet()) {
+                String name = entry.getKey();
+                if (!forPlayerFilter.containsPlayerName(name)) {
+                    VirtualLines lines = entry.getValue();
+                    lines.set(index, value);
+                    this.sendLines(lines, SignLink.plugin.getPlayerByLowercase(name));
+                }
+            }
+
+            // Update default value
+            getLines().set(index, value);
         } else {
-            for (String player : players) {
+            // Only for some player names, do not update default
+            for (String player : forPlayerFilter.getPlayerNames()) {
                 VirtualLines lines = getLines(player);
                 lines.set(index, value);
-                this.sendLines(lines, Bukkit.getPlayer(player));
+                this.sendLines(lines, SignLink.plugin.getPlayerByLowercase(player));
             }
         }
     }
 
     public void restoreRealLine(int line) {
-        setLine(line, getRealLine(line));
+        setLine(line, getRealLine(line), VariableTextPlayerFilter.all());
     }
 
+    /**
+     * Gets a single line of this virtual sign as it is displayed
+     * to players that do not have a personalized text displayed
+     *
+     * @param index Line index (0-3)
+     * @return Line displayed by default
+     */
     public String getLine(int index) {
-        return getLine(index, null);
+        return this.defaultlines.get(index);
     }
 
+    /**
+     * Gets a single line of this virtual sign as it is displayed
+     * to a player
+     *
+     * @param index Line index (0-3)
+     * @param player Name of the player to get it for, all-lowercase
+     * @return Line for this player
+     */
     public String getLine(int index, String player) {
-        return getLines(player).get(index);
+        return this.playerlines.getOrDefault(player, this.defaultlines).get(index);
     }
 
     public String[] getRealLines() {
@@ -329,7 +386,7 @@ public class VirtualSign extends VirtualSignStore {
                         Variables.get(varname).removeLocation(signblock, i);
                     }
                     this.oldlines[i] = this.sign.getLine(i);
-                    this.setLine(i, this.oldlines[i]);
+                    this.setLine(i, this.oldlines[i], VariableTextPlayerFilter.all());
                     varname = Variables.parseVariableName(this.oldlines[i]);
                     if (varname != null) {
                         Variables.get(varname).addLocation(signblock, i);

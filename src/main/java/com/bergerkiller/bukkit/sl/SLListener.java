@@ -2,9 +2,12 @@ package com.bergerkiller.bukkit.sl;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.World;
 import org.bukkit.block.BlockState;
@@ -43,6 +46,38 @@ public class SLListener implements Listener, PacketListener {
     protected static boolean ignore = false;
     private final List<Variable> variableBuffer = new ArrayList<Variable>();
     private final List<LinkedSign> linkedSignBuffer = new ArrayList<LinkedSign>();
+    private final Map<String, Player> playersByLowercaseName = new HashMap<String, Player>();
+
+    protected SLListener() {
+        // Fill cache up-front
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            playersByLowercaseName.put(player.getName().toLowerCase(), player);
+        }
+    }
+
+    /**
+     * Gets the player by name, case-insensitive. The Bukkit getPlayer() has some
+     * (performance) flaws, and on older versions of Minecraft the exact getter
+     * wasn't case-insensitive at all.
+     *
+     * @param name Player name, must be all-lowercase
+     * @return Player matching this name, or null if not online right now
+     */
+    public Player getPlayerByLowercase(String name) {
+        synchronized (playersByLowercaseName) {
+            Player cached = playersByLowercaseName.get(name);
+            if (cached == null) {
+                for (Player player : Bukkit.getOnlinePlayers()) {
+                    if (player.getName().toLowerCase().equals(name)) {
+                        playersByLowercaseName.put(name, player);
+                        cached = player;
+                        break;
+                    }
+                }
+            }
+            return cached;
+        }
+    }
 
     @Override
     public void onPacketReceive(PacketReceiveEvent event) {
@@ -249,6 +284,10 @@ public class SLListener implements Listener, PacketListener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerJoin(PlayerJoinEvent event) {
         final Player p = event.getPlayer();
+
+        // Store early
+        this.playersByLowercaseName.put(p.getName().toLowerCase(), p);
+
         if (SignLink.plugin.papi != null) {
             SignLink.plugin.papi.refreshVariables(p);
         }
@@ -270,5 +309,8 @@ public class SLListener implements Listener, PacketListener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerQuit(PlayerQuitEvent event) {
         VirtualSign.invalidateAll(event.getPlayer());
+
+        // Cleanup
+        this.playersByLowercaseName.remove(event.getPlayer().getName().toLowerCase());
     }
 }

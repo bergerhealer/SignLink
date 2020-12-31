@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -18,6 +19,7 @@ import com.bergerkiller.bukkit.common.utils.CommonUtil;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.bergerkiller.bukkit.sl.LinkedSign;
 import com.bergerkiller.bukkit.sl.SignDirection;
+import com.bergerkiller.bukkit.sl.VariableTextPlayerFilter;
 import com.bergerkiller.bukkit.sl.VirtualSign;
 
 /**
@@ -48,7 +50,7 @@ public class Variable implements VariableValue {
     @Override
     public void clear() {
         this.playervariables.clear();
-        this.set("%" + this.name + "%");
+        this.set(createDefaultValue(this.name));
         this.defaultticker = new Ticker(this.defaultvalue);
     }
 
@@ -81,7 +83,7 @@ public class Variable implements VariableValue {
     /**
      * Gets the Variable value for the player specified
      * 
-     * @param playername to get the variable value of
+     * @param playername to get the variable value of, case-insensitive
      * @return Player-specific variable value, or the default if none is set
      */
     public String get(String playername) {
@@ -97,7 +99,7 @@ public class Variable implements VariableValue {
     @Override
     public void set(String value) {
         if (value == null) {
-            value = "%" + this.name + "%";
+            value = createDefaultValue(this.name);
         }
 
         // Is a change required?
@@ -111,14 +113,8 @@ public class Variable implements VariableValue {
             this.defaultvalue = event.getNewValue();
             this.defaultticker.reset(this.defaultvalue);
             this.playervariables.clear();
-//            String[] forplayers = new String[Bukkit.getOnlinePlayers().size()];
-//            int i = 0;
-//            for(Player p : Bukkit.getOnlinePlayers()) {
-//                forplayers[i] = p.getName();
-//                i++;
-//            }
-            this.setSigns(this.defaultvalue, this.defaultticker.hasWrapAround(), null);
-//            System.out.println("Signs updated.");
+
+            this.applyToSigns(this.defaultticker, VariableTextPlayerFilter.all());
         }
     }
 
@@ -128,7 +124,7 @@ public class Variable implements VariableValue {
      * @param value to set to
      */
     public void setDefault(String value) {
-        if (value == null) value = "%" + this.name + "%";
+        if (value == null) value = createDefaultValue(this.name);
         VariableChangeEvent event = new VariableChangeEvent(this, value, null, VariableChangeType.DEFAULT);
         Bukkit.getServer().getPluginManager().callEvent(event);
         if (!event.isCancelled()) {
@@ -160,22 +156,18 @@ public class Variable implements VariableValue {
     /**
      * Gets a variable specific for a single player
      * 
-     * @param playername
+     * @param playername Name of the player, case-insensitive
      * @return Player-specific variable
      */
     public PlayerVariable forPlayer(String playername) {
-        PlayerVariable pvar = playervariables.get(playername.toLowerCase());
-        if (pvar == null) {
-            pvar = new PlayerVariable(playername, this);
-            playervariables.put(playername.toLowerCase(), pvar);
-        }
-        return pvar;
+        return playervariables.computeIfAbsent(playername.toLowerCase(),
+                name -> new PlayerVariable(name, Variable.this));
     }
 
     /**
      * Gets a variable specific for a group of players
      * 
-     * @param player
+     * @param players Players in the group
      * @return Player group variable
      */
     public GroupVariable forGroup(Player... players) {
@@ -189,7 +181,7 @@ public class Variable implements VariableValue {
     /**
      * Gets a variable specific for a group of players
      * 
-     * @param playernames
+     * @param playernames Names of the players in the group, names are case-insensitive
      * @return Player group variable
      */
     public GroupVariable forGroup(String... playernames) {
@@ -206,9 +198,14 @@ public class Variable implements VariableValue {
      * @param sign to update
      */
     public void update(LinkedSign sign) {
-        sign.setText(this.defaultticker.current(), this.defaultticker.hasWrapAround());
+        Set<String> names = this.playervariables.keySet();
+
+        sign.setText(this.defaultticker.current(), this.defaultticker.hasWrapAround(),
+                VariableTextPlayerFilter.allExcept(names));
+
         for (PlayerVariable var : forAll()) {
-            sign.setText(var.getTicker().current(), var.getTicker().hasWrapAround(), var.getPlayer());
+            sign.setText(var.getTicker().current(), var.getTicker().hasWrapAround(),
+                    VariableTextPlayerFilter.only(var.getPlayer()));
         }
     }
 
@@ -234,9 +231,13 @@ public class Variable implements VariableValue {
         }
     }
 
-    void setSigns(String value, boolean wrapAround, String[] playernames) {
+    void applyToSigns(Ticker ticker, VariableTextPlayerFilter forPlayerFilter) {
+        applyToSigns(ticker.current(), ticker.hasWrapAround(), forPlayerFilter);
+    }
+
+    void applyToSigns(String value, boolean wrapAround, VariableTextPlayerFilter forPlayerFilter) {
         for (LinkedSign sign : getSigns()) {
-            sign.setText(value, wrapAround, playernames);
+            sign.setText(value, wrapAround, forPlayerFilter);
         }
     }
 
@@ -405,7 +406,7 @@ public class Variable implements VariableValue {
             ArrayList<VirtualSign> signs = sign.getSigns(false);
             if (signs != null) {
                 for (VirtualSign vsign : signs) {
-                    vsign.setLine(sign.line, vsign.getRealLine(sign.line));
+                    vsign.restoreRealLine(sign.line);
                 }
             }
             return true;
@@ -447,5 +448,15 @@ public class Variable implements VariableValue {
     @Deprecated
     public String get() {
         return this.getDefault();
+    }
+
+    /**
+     * Creates the default variable value, used before a value is assigned
+     *
+     * @param name Variable name
+     * @return Default variable value, which is %name%
+     */
+    public static String createDefaultValue(String name) {
+        return "%" + name + "%";
     }
 }

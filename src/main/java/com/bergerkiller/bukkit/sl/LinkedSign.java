@@ -1,6 +1,7 @@
 package com.bergerkiller.bukkit.sl;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 
@@ -84,9 +85,27 @@ public class LinkedSign {
      * 
      * @param value of the variable to display
      * @param wrapAround whether the value wraps around endlessly (ticker)
-     * @param forplayers which players need to be updated, null for all players
+     * @param forplayers which players need to be updated, null or empty for all players
+     * @deprecated Use the VariableTextPlayerFilter-based setText instead
      */
+    @Deprecated
     public void setText(String value, boolean wrapAround, String... forplayers) {
+        if (forplayers == null || forplayers.length == 0) {
+            setText(value, wrapAround, VariableTextPlayerFilter.all());
+        } else {
+            setText(value, wrapAround, VariableTextPlayerFilter.only(new HashSet<String>(Arrays.asList(forplayers))));
+        }
+    }
+
+    /**
+     * Refreshes the text on this linked sign, updating all the signs.
+     * 
+     * @param value of the variable to display
+     * @param wrapAround whether the value wraps around endlessly (ticker)
+     * @param forPlayerFilter Filter that specifies what players to refresh with this value,
+     *                        and which to ignore
+     */
+    public void setText(String value, boolean wrapAround, VariableTextPlayerFilter forPlayerFilter) {
         oldtext = value;
         if (!SignLink.updateSigns) {
             return; 
@@ -104,7 +123,7 @@ public class LinkedSign {
         linkedText.setSigns(signs);
         linkedText.setWrapAround(wrapAround);
         linkedText.generate(value);
-        linkedText.apply(forplayers);
+        linkedText.apply(forPlayerFilter);
     }
 
     /**

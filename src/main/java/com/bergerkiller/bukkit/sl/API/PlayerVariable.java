@@ -2,6 +2,8 @@ package com.bergerkiller.bukkit.sl.API;
 
 import org.bukkit.Bukkit;
 
+import com.bergerkiller.bukkit.sl.VariableTextPlayerFilter;
+
 /**
  * Represents a Variable value for a single player
  */
@@ -11,12 +13,9 @@ public class PlayerVariable implements VariableValue {
     private Variable variable;
     private String playername;
 
-    public PlayerVariable(String playername, Variable variable) {
-        this(playername, variable, variable.getDefault());
-    }
-    public PlayerVariable(String playername, Variable variable, String value) {
+    protected PlayerVariable(String playername, Variable variable) {
         this.playername = playername;
-        this.value = value;
+        this.value = variable.getDefault();
         this.variable = variable;
         this.ticker = this.variable.getDefaultTicker();
     }
@@ -27,7 +26,8 @@ public class PlayerVariable implements VariableValue {
     }
 
     /**
-     * Gets the name of the player this player variable belongs to
+     * Gets the name of the player this player variable belongs to.
+     * This name is always all-lowercase.
      * 
      * @return player name
      */
@@ -50,9 +50,12 @@ public class PlayerVariable implements VariableValue {
         VariableChangeEvent event = new VariableChangeEvent(this.variable, value, new PlayerVariable[] {this}, VariableChangeType.PLAYER);
         Bukkit.getServer().getPluginManager().callEvent(event);
         if (!event.isCancelled()) {
+            Ticker ticker = this.getTicker();
+
             this.value = value;
-            getTicker().reset(value);
-            this.variable.setSigns(value, this.ticker.hasWrapAround(), new String[] {this.playername});
+            ticker.reset(value);
+
+            this.variable.applyToSigns(ticker, VariableTextPlayerFilter.only(this.playername));
         }
     }
 

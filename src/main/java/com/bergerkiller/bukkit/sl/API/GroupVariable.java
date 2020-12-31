@@ -1,6 +1,11 @@
 package com.bergerkiller.bukkit.sl.API;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import org.bukkit.Bukkit;
+
+import com.bergerkiller.bukkit.sl.VariableTextPlayerFilter;
 
 /**
  * Groups multiple player-specific variables together as one
@@ -38,7 +43,7 @@ public class GroupVariable implements VariableValue {
     /**
      * Gets the names of all the players in this group
      * 
-     * @return Player variable names
+     * @return Player variable names, all-lowercase
      */
     public String[] getPlayerNames() {
         String[] rval = new String[this.players.length];
@@ -63,7 +68,14 @@ public class GroupVariable implements VariableValue {
                 }
                 pvar.value = value;
             }
-            this.variable.setSigns(value, this.ticker != null && this.ticker.hasWrapAround(), getPlayerNames());
+
+            Set<String> names = new HashSet<String>(this.players.length);
+            for (PlayerVariable player : this.players) {
+                names.add(player.getPlayer());
+            }
+
+            this.variable.applyToSigns(value, this.ticker != null && this.ticker.hasWrapAround(),
+                    VariableTextPlayerFilter.only(names));
         }
     }
 

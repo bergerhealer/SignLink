@@ -200,6 +200,11 @@ public class VirtualSignStore {
         }
     }
 
+    /**
+     * Removes player-specific metadata for a player name
+     *
+     * @param playerName Name of the player, must be all-lowercase
+     */
     public static synchronized void clearPlayer(String playerName) {
         for (VirtualSign sign : virtualSigns.values()) {
             sign.resetLines(playerName);

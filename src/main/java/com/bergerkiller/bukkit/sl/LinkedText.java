@@ -292,11 +292,11 @@ public class LinkedText {
     /**
      * Applies the generated results to the signs
      * 
-     * @param forPlayers what players, null for all players
+     * @param forPlayerFilter Filters what players to apply this linked text to
      */
-    public void apply(String... forPlayers) {
+    public void apply(VariableTextPlayerFilter forPlayerFilter) {
         for (int i = 0; i < this.parts.length; i++) {
-            this.signs.get(i).setLine(this.line, this.parts[i].toString(), forPlayers);
+            this.signs.get(i).setLine(this.line, this.parts[i].toString(), forPlayerFilter);
         }
     }
 }

@@ -65,6 +65,18 @@ public class SignLink extends PluginBase {
     }
 
     /**
+     * Gets the player by name, case-insensitive. The Bukkit getPlayer() has some
+     * (performance) flaws, and on older versions of Minecraft the exact getter
+     * wasn't case-insensitive at all.
+     *
+     * @param name Player name, must be all-lowercase
+     * @return Player matching this name, or null if not online right now
+     */
+    public Player getPlayerByLowercase(String name) {
+        return this.listener.getPlayerByLowercase(name);
+    }
+
+    /**
      * Whether all signs on the server are routinely checked for sign text changes.
      * When a sign suddenly has a variable displayed on it, this will make it change that
      * into a variable.
@@ -246,7 +258,7 @@ public class SignLink extends PluginBase {
         values.load();
         for (ConfigurationNode node : values.getNodes()) {
             Variable var = Variables.get(node.getName());
-            var.setDefault(node.get("value", "%" + var.getName() + "%"));
+            var.setDefault(node.get("value", Variable.createDefaultValue(var.getName())));
             var.getDefaultTicker().load(node);
             for (ConfigurationNode forplayer : node.getNode("forPlayers").getNodes()) {
                 String value = forplayer.get("value", String.class, null);
