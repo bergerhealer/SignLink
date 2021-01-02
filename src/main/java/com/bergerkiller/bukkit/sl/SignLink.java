@@ -41,6 +41,7 @@ import com.bergerkiller.bukkit.sl.API.Variables;
 import com.bergerkiller.bukkit.sl.PAPI.PlaceholderAPIHandler;
 import com.bergerkiller.bukkit.sl.PAPI.PlaceholderAPIHandlerWithExpansions;
 import com.bergerkiller.bukkit.sl.PAPI.PlaceholderAPIHandlerWithHook;
+import com.bergerkiller.bukkit.sl.impl.VariableMap;
 
 public class SignLink extends PluginBase {
     public static SignLink plugin;
@@ -235,7 +236,7 @@ public class SignLink extends PluginBase {
         //Save variable values and tickers to file
         this.saveValues();
 
-        Variables.deinit();
+        VariableMap.INSTANCE.deinit();
         VirtualSign.deinit();
     }
 
@@ -612,17 +613,17 @@ public class SignLink extends PluginBase {
                 }
                 // Set ticker
                 if (!modeName.isEmpty()) {
-                    t.mode = ParseUtil.parseEnum(modeName, t.mode);
+                    t.setMode(ParseUtil.parseEnum(modeName, t.getMode()));
                 }
                 if (!intervalName.isEmpty()) {
-                    t.interval = ParseUtil.parseLong(intervalName, t.interval);
+                    t.setInterval(ParseUtil.parseLong(intervalName, t.getInterval()));
                 }
                 t.reset(varValue.get());
-                varValue.updateAll();
                 if (!t.isTicking()) {
                     sender.sendMessage(ChatColor.GREEN + "Ticker is disabled");
                 } else {
-                    sender.sendMessage(ChatColor.GREEN + "You set a '" + t.mode.toString().toLowerCase() + "' ticker ticking every " + t.interval + " ticks!");
+                    sender.sendMessage(ChatColor.GREEN + "You set a '" + t.getMode().toString().toLowerCase()
+                            + "' ticker ticking every " + t.getInterval() + " ticks!");
                 }
             } else {
                 sender.sendMessage(ChatColor.RED + "Please specify the ticker direction!");

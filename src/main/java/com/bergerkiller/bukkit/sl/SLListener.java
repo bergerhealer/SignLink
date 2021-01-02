@@ -40,11 +40,13 @@ import com.bergerkiller.bukkit.common.utils.WorldUtil;
 import com.bergerkiller.bukkit.common.wrappers.ChatText;
 import com.bergerkiller.bukkit.sl.API.Variable;
 import com.bergerkiller.bukkit.sl.API.Variables;
+import com.bergerkiller.bukkit.sl.impl.VariableImpl;
+import com.bergerkiller.bukkit.sl.impl.VariableMap;
 import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutMapChunkHandle;
 
 public class SLListener implements Listener, PacketListener {
     protected static boolean ignore = false;
-    private final List<Variable> variableBuffer = new ArrayList<Variable>();
+    private final List<VariableImpl> variableBuffer = new ArrayList<VariableImpl>();
     private final List<LinkedSign> linkedSignBuffer = new ArrayList<LinkedSign>();
     private final Map<String, Player> playersByLowercaseName = new HashMap<String, Player>();
 
@@ -231,7 +233,7 @@ public class SLListener implements Listener, PacketListener {
                     }
 
                     // Fill with variables
-                    Variables.find(linkedSignBuffer, variableBuffer, state.getBlock());
+                    VariableMap.INSTANCE.find(linkedSignBuffer, variableBuffer, state.getBlock());
                 }
             }
             // Size check
@@ -240,7 +242,7 @@ public class SLListener implements Listener, PacketListener {
             }
             // Update all the linked signs using the respective variables
             for (int i = 0; i < variableBuffer.size(); i++) {
-                variableBuffer.get(i).update(linkedSignBuffer.get(i));
+                variableBuffer.get(i).updateSign(linkedSignBuffer.get(i));
             }
         } finally {
             variableBuffer.clear();

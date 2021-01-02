@@ -1,6 +1,7 @@
 package com.bergerkiller.bukkit.sl;
 
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Set;
 
 /**
@@ -10,6 +11,7 @@ import java.util.Set;
  */
 public class VariableTextPlayerFilter {
     private static final VariableTextPlayerFilter ALL = new VariableTextPlayerFilter(true, Collections.emptySet());
+    private static final VariableTextPlayerFilter NONE = new VariableTextPlayerFilter(false, Collections.emptySet());
     private boolean exclude;
     private Set<String> names;
 
@@ -26,6 +28,16 @@ public class VariableTextPlayerFilter {
      */
     public boolean isAll() {
         return this.exclude && this.names.isEmpty();
+    }
+
+    /**
+     * Gets whether this filter specifies no players are
+     * included.
+     *
+     * @return True if no player names are included
+     */
+    public boolean isNone() {
+        return !this.exclude && this.names.isEmpty();
     }
 
     /**
@@ -69,13 +81,26 @@ public class VariableTextPlayerFilter {
     }
 
     /**
+     * Filter that specifies no players are included at all
+     *
+     * @return VariableTextPlayerFilter
+     */
+    public static VariableTextPlayerFilter none() {
+        return NONE;
+    }
+
+    /**
      * Filter that specifies only the given player names are included
      *
      * @param includedPlayerNames Set of names to include
      * @return VariableTextPlayerFilter
      */
     public static VariableTextPlayerFilter only(Set<String> includedPlayerNames) {
-        return new VariableTextPlayerFilter(false, includedPlayerNames);
+        if (includedPlayerNames.isEmpty()) {
+            return NONE;
+        } else {
+            return new VariableTextPlayerFilter(false, includedPlayerNames);
+        }
     }
 
     /**
@@ -99,6 +124,47 @@ public class VariableTextPlayerFilter {
             return ALL;
         } else {
             return new VariableTextPlayerFilter(true, excludedPlayerNames);
+        }
+    }
+
+    /**
+     * Combines two filters together to form a single filter rule that satisfies both
+     *
+     * @param a Filter A
+     * @param b Filter B
+     * @return Filter that satisfies both
+     */
+    public static VariableTextPlayerFilter combine(VariableTextPlayerFilter a, VariableTextPlayerFilter b) {
+        if (a.isExcluding()) {
+            return combineExcludingWith(a, b);
+        } else if (b.isExcluding()) {
+            return combineExcludingWith(b, a);
+        } else {
+            // Both including filters, create an intersection
+            HashSet<String> combined = new HashSet<String>(a.names);
+            combined.retainAll(b.names);
+            return only(combined);
+        }
+    }
+
+    private static VariableTextPlayerFilter combineExcludingWith(VariableTextPlayerFilter excl, VariableTextPlayerFilter b) {
+        if (b.isExcluding()) {
+            // One excluding filter with names of excl and b combined
+            if (excl.names.isEmpty()) {
+                return b;
+            } else if (b.names.isEmpty()) {
+                return excl;
+            } else {
+                HashSet<String> combined = new HashSet<String>(excl.names.size() + b.names.size());
+                combined.addAll(excl.names);
+                combined.addAll(b.names);
+                return new VariableTextPlayerFilter(true, combined);
+            }
+        } else {
+            // One including filter with names of b not in excl
+            HashSet<String> combined = new HashSet<String>(b.names);
+            combined.removeAll(excl.names);
+            return only(combined);
         }
     }
 }

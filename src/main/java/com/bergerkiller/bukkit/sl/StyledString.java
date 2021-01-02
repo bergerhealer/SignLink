@@ -13,7 +13,7 @@ import com.bergerkiller.bukkit.common.utils.StringUtil;
  */
 public class StyledString extends ArrayList<StyledCharacter> {
     private static final long serialVersionUID = -9201633429398374786L;
-    private StyledCharacter startStyle = new StyledCharacter(' ');
+    private StyledCharacter startStyle = StyledCharacter.INITIAL_STYLE;
 
     /**
      * Sets the start style of this Styled String. It's the style applied to the very
@@ -224,6 +224,11 @@ public class StyledString extends ArrayList<StyledCharacter> {
             }
         }
         return result.toString();
+    }
+
+    @Override
+    public StyledString clone() {
+        return (StyledString) super.clone();
     }
 
     private static final boolean canFitOnSign(int width) {

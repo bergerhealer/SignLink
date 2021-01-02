@@ -1,57 +1,55 @@
 package com.bergerkiller.bukkit.sl.API;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 
+import com.bergerkiller.bukkit.common.collections.ImplicitlySharedSet;
+import com.bergerkiller.bukkit.common.utils.CommonUtil;
 import com.bergerkiller.bukkit.common.utils.MaterialUtil;
 import com.bergerkiller.bukkit.sl.LinkedSign;
-import com.bergerkiller.bukkit.sl.SignLink;
 import com.bergerkiller.bukkit.sl.VirtualSign;
+import com.bergerkiller.bukkit.sl.impl.VariableImpl;
+import com.bergerkiller.bukkit.sl.impl.VariableMap;
 
 /**
  * Stores all Variables available
  */
 public class Variables {
-    private static HashMap<String, Variable> variables = new HashMap<String, Variable>();
-
-    public static synchronized void deinit() {
-        variables.clear();
-    }
 
     /**
      * Updates all the tickers of all the Variables on the server
      */
     public static synchronized void updateTickers() {
-        for (Variable var : all()) {
-            var.updateTickers();
-        }
+        VariableMap.INSTANCE.updateTickers();
     }
 
     /**
-     * Gets all the variables on the server.
-     * @deprecated: This method is not thread-safe.
-     * Use {@link getAll()} instead.
+     * Gets a current copy of all the variables on the server.
+     * Use java 8's try-with-resources idiom to use this collection
+     * to prevent unneeded copying. Example:<br>
+     * <pre> 
+     * try (ImplicitlySharedSet&lt;Variable&gt; tmp = Variables.all()) {
+     *     // Do stuff with the temporary copy
+     *     for (Variable var : tmp) {
+     *         System.out.println(var.getName());
+     *     }
+     * }
+     * </pre>
      * 
      * @return Collection of all variables
      */
-    @Deprecated
-    public static Collection<Variable> all() {
-        return variables.values();
+    public static ImplicitlySharedSet<Variable> all() {
+        return CommonUtil.unsafeCast(VariableMap.INSTANCE.all());
     }
 
     /**
      * Updates the sign block orders of all signs showing variables
      */
-    public static synchronized void updateSignOrder() {
-        for (Variable var : all()) {
-            var.updateSignOrder();
-        }
+    public static void updateSignOrder() {
+        VariableMap.INSTANCE.forAll(VariableImpl::updateSignOrder);
     }
 
     /**
@@ -59,10 +57,8 @@ public class Variables {
      * 
      * @param world to update
      */
-    public static synchronized void updateSignOrder(World world) {
-        for (Variable var : all()) {
-            var.updateSignOrder(world);
-        }
+    public static void updateSignOrder(final World world) {
+        VariableMap.INSTANCE.forAll(var -> var.updateSignOrder(world));
     }
 
     /**
@@ -70,10 +66,8 @@ public class Variables {
      * 
      * @param near
      */
-    public static synchronized void updateSignOrder(Block near) {
-        for (Variable var : all()) {
-            var.updateSignOrder(near);
-        }
+    public static void updateSignOrder(final Block near) {
+        VariableMap.INSTANCE.forAll(var -> var.updateSignOrder(near));
     }
 
     /**
@@ -81,8 +75,8 @@ public class Variables {
      * 
      * @return Variables
      */
-    public static synchronized List<Variable> getAllAsList() {
-        return new ArrayList<Variable>(variables.values());
+    public static List<Variable> getAllAsList() {
+        return VariableMap.INSTANCE.getAllAsList();
     }
 
     /**
@@ -90,8 +84,8 @@ public class Variables {
      * 
      * @return Variables
      */
-    public static synchronized Variable[] getAll() {
-        return variables.values().toArray(new Variable[0]);
+    public static Variable[] getAll() {
+        return VariableMap.INSTANCE.getAll();
     }
 
     /**
@@ -99,8 +93,8 @@ public class Variables {
      * 
      * @return Variable names
      */
-    public static synchronized String[] getNames() {
-        return variables.keySet().toArray(new String[0]);
+    public static String[] getNames() {
+        return VariableMap.INSTANCE.getNames();
     }
 
     /**
@@ -109,21 +103,8 @@ public class Variables {
      * @param name of the variable
      * @return the Variable, or null if the name is of an unsupported format
      */
-    public static synchronized Variable get(String name) {
-        if (name == null || name.contains("\000")) {
-            return null;
-        }
-        Variable var = variables.get(name);
-        if (var == null) {
-            var = new Variable("%" + name + "%", name);
-            variables.put(name, var);
-
-            // If PAPI is enabled, initialize the variable values
-            if (SignLink.plugin.papi != null) {
-                SignLink.plugin.papi.refreshVariableForAll(var);
-            }
-        }
-        return var;
+    public static Variable get(String name) {
+        return VariableMap.INSTANCE.get(name);
     }
 
     /**
@@ -132,8 +113,8 @@ public class Variables {
      * @param name of the variable
      * @return the Variable
      */
-    public static synchronized Variable getIfExists(String name) {
-        return variables.get(name);
+    public static Variable getIfExists(String name) {
+        return VariableMap.INSTANCE.getIfExists(name);
     }
 
     /**
@@ -143,8 +124,8 @@ public class Variables {
      * @param line on which the variable can be found
      * @return The Variable, or null if there is none
      */
-    public static synchronized Variable get(VirtualSign sign, int line) {
-        return get(parseVariableName(sign.getRealLine(line)));
+    public static Variable get(VirtualSign sign, int line) {
+        return VariableMap.INSTANCE.get(parseVariableName(sign.getRealLine(line)));
     }
 
     /**
@@ -154,7 +135,7 @@ public class Variables {
      * @param line on which the variable can be found
      * @return The Variable, or null if there is none
      */
-    public static synchronized Variable get(Block signblock, int line) {
+    public static Variable get(Block signblock, int line) {
         if (MaterialUtil.ISSIGN.get(signblock)) {
             return get(VirtualSign.getOrCreate(signblock), line);
         }
@@ -167,13 +148,8 @@ public class Variables {
      * @param name of the Variable to remove
      * @return True if the variable was removed, False if it was not found
      */
-    public static synchronized boolean remove(String name) {
-        Variable var = variables.remove(name);
-        if (var != null) {
-            SignLink.plugin.removeEditing(var);
-            return true;
-        }
-        return false;
+    public static boolean remove(String name) {
+        return VariableMap.INSTANCE.remove(name);
     }
 
     /**
@@ -197,14 +173,8 @@ public class Variables {
      * @param at Block to find
      * @return True if something was found, False if not
      */
-    public static synchronized boolean find(List<LinkedSign> signs, List<Variable> variables, Block at) {
-        boolean found = false;
-        for (Variable var : all()) {
-            if (var.find(signs, variables, at)) {
-                found = true;
-            }
-        }
-        return found;
+    public static boolean find(List<LinkedSign> signs, List<Variable> variables, Block at) {
+        return VariableMap.INSTANCE.find(signs, CommonUtil.unsafeCast(variables), at);
     }
 
     /**
@@ -218,8 +188,8 @@ public class Variables {
      * @param at Block Location to find
      * @return True if something was found, False if not
      */
-    public static synchronized boolean find(List<LinkedSign> signs, List<Variable> variables, Location at) {
-        return find(signs, variables, at.getBlock());
+    public static boolean find(List<LinkedSign> signs, List<Variable> variables, Location at) {
+        return VariableMap.INSTANCE.find(signs, CommonUtil.unsafeCast(variables), at);
     }
 
     /**

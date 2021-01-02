@@ -13,7 +13,10 @@ public interface VariableValue {
 
     /**
      * Updates the text on all the signs
+     * 
+     * @deprecated This method does nothing and does not need to be called
      */
+    @Deprecated
     void updateAll();
 
     /**

@@ -8,6 +8,8 @@ import com.bergerkiller.bukkit.common.utils.StringUtil;
  * A single character displayed on the sign, with all styling that is applied.
  */
 public class StyledCharacter {
+    public static StyledCharacter INITIAL_STYLE = new StyledCharacter(' ');
+
     public final char character;
     public final ChatColor color;
     public final ChatColor[] formats;

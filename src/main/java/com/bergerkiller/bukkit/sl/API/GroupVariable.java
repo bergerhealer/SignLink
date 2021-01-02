@@ -1,11 +1,14 @@
 package com.bergerkiller.bukkit.sl.API;
 
-import java.util.HashSet;
-import java.util.Set;
+import java.util.Arrays;
+import java.util.Collections;
 
 import org.bukkit.Bukkit;
 
-import com.bergerkiller.bukkit.sl.VariableTextPlayerFilter;
+import com.bergerkiller.bukkit.sl.impl.MultiPlayerTicker;
+import com.bergerkiller.bukkit.sl.impl.PlayerVariableImpl;
+import com.bergerkiller.bukkit.sl.impl.VariableImpl;
+import com.bergerkiller.bukkit.sl.impl.VariableValueMap;
 
 /**
  * Groups multiple player-specific variables together as one
@@ -13,22 +16,29 @@ import com.bergerkiller.bukkit.sl.VariableTextPlayerFilter;
 public class GroupVariable implements VariableValue {
     private PlayerVariable[] players;
     private Variable variable;
-    private String value;
-    private Ticker ticker;
+    private final MultiPlayerTicker ticker;
 
-    public GroupVariable(PlayerVariable[] players, Variable variable) {
-        this(players, variable, variable.getDefault());
-    }
-
-    public GroupVariable(PlayerVariable[] players, Variable variable, String value) {
+    public GroupVariable(PlayerVariable[] players, VariableImpl variable) {
         this.players = players;
         this.variable = variable;
-        this.value = value;
+        if (players.length == 0) {
+            this.ticker = new MultiPlayerTicker(Collections.emptySet(), variable);
+        } else {
+            VariableValueMap.Entry[] entries = new VariableValueMap.Entry[players.length];
+            for (int i = 0; i < players.length; i++) {
+                entries[i] = ((PlayerVariableImpl) players[i]).getEntry();
+            }
+            this.ticker = new MultiPlayerTicker(Arrays.asList(entries), entries[0]);
+        }
     }
 
     @Override
     public String get() {
-        return this.value;
+        if (this.players.length == 0) {
+            return this.variable.getDefault();
+        } else {
+            return this.players[0].get();
+        }
     }
 
     /**
@@ -55,27 +65,16 @@ public class GroupVariable implements VariableValue {
 
     @Override
     public void set(String value) {
+        if (this.players.length == 0) {
+            return;
+        }
+
         VariableChangeEvent event = new VariableChangeEvent(this.variable, value, this.players, VariableChangeType.PLAYER);
         Bukkit.getServer().getPluginManager().callEvent(event);
         if (!event.isCancelled()) {
-            this.value = value;
-            if (this.ticker != null) {
-                this.ticker.reset(value);
+            for (PlayerVariable pVar : this.players) {
+                pVar.set(value);
             }
-            for (PlayerVariable pvar : this.players) {
-                if (this.ticker == null) {
-                    pvar.ticker.reset(value);
-                }
-                pvar.value = value;
-            }
-
-            Set<String> names = new HashSet<String>(this.players.length);
-            for (PlayerVariable player : this.players) {
-                names.add(player.getPlayer());
-            }
-
-            this.variable.applyToSigns(value, this.ticker != null && this.ticker.hasWrapAround(),
-                    VariableTextPlayerFilter.only(names));
         }
     }
 
@@ -85,24 +84,16 @@ public class GroupVariable implements VariableValue {
     }
 
     @Override
-    public void updateAll() {
-        this.variable.updateAll();
-    }
+    @Deprecated
+    public void updateAll() {}
 
     @Override
     public void clear() {
-        this.set("%" + this.variable.getName() + "%");
-        this.ticker = null;
+        this.ticker.reset(Variable.createDefaultValue(this.variable.getName()));
     }
 
     @Override
     public Ticker getTicker() {
-        if (this.ticker == null) {
-            this.ticker = new Ticker(this.value, this.getPlayerNames());
-            for (PlayerVariable pvar : this.players) {
-                pvar.ticker = this.ticker;
-            }
-        }
         return this.ticker;
     }
 }
