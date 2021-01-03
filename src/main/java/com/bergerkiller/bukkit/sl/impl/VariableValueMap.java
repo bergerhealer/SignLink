@@ -491,6 +491,10 @@ public class VariableValueMap {
                 for (Entry e : this.declaring) {
                     e.compute();
                 }
+
+                // We didn't re-compute ourselves, but the text did change
+                // Make sure to send another update
+                this.applyToAll();
             }
         }
 
@@ -518,14 +522,19 @@ public class VariableValueMap {
                 this.isComputing = false;
 
                 // Update all signs showing this variable
-                try (ImplicitlySharedList<LinkedSign> signs = getVariable().getBoundTo().clone()) {
-                    this.apply(signs);
-                }
+                this.applyToAll();
 
                 // Refresh all variables that declare this variable
                 for (Entry e : this.declaring) {
                     e.compute();
                 }
+            }
+        }
+
+        // Update all signs showing this variable
+        private void applyToAll() {
+            try (ImplicitlySharedList<LinkedSign> signs = getVariable().getBoundTo().clone()) {
+                this.apply(signs);
             }
         }
 
