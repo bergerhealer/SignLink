@@ -85,6 +85,25 @@
       <!-- Plugins -->
       <plugins>
 
+        <!-- Generate a jar containing the source javadoc -->
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-javadoc-plugin</artifactId>
+          <version>3.0.1</version>
+          <configuration>
+            <failOnError>false</failOnError>
+            <doclint>none</doclint>
+            <quiet>true</quiet>
+          </configuration>
+        </plugin>
+
+        <!-- Generate a jar containing the java sources -->
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-source-plugin</artifactId>
+          <version>3.0.1</version>
+        </plugin>
+
         <!-- Copy artifacts to non-versioned jar name -->
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
