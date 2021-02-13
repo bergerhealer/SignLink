@@ -49,7 +49,12 @@ public class PlayerVariableImpl extends PlayerVariable {
         }
 
         // Reset ticker to the defaults
+        boolean wasTicking = this.entry.ticker.isTicking();
         this.entry.ticker = new SinglePlayerTicker(this.entry);
+        if (wasTicking) {
+            this.entry.getValueMap().notifyPlayerEntryTickedChanged(
+                    (SinglePlayerTicker) this.entry.ticker, this.entry);
+        }
 
         // Update value and text instantly
         this.entry.setValue(defaultValue);

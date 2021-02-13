@@ -1,5 +1,8 @@
 package com.bergerkiller.bukkit.sl.impl;
 
+import com.bergerkiller.bukkit.common.config.ConfigurationNode;
+import com.bergerkiller.bukkit.sl.API.TickMode;
+
 /**
  * Manages the ticker value of a single player,
  * with only one text value being managed.
@@ -28,6 +31,24 @@ public class SinglePlayerTicker extends TickerBaseImpl {
         this.mode = source.mode;
         for (TickerPause p : source.pauses) {
             this.pauses.add(p.clone());
+        }
+    }
+
+    @Override
+    public void setMode(TickMode mode) {
+        boolean wasTicking = this.isTicking();
+        super.setMode(mode);
+        if (this.isTicking() != wasTicking) {
+            this.entry.getValueMap().notifyPlayerEntryTickedChanged(this, this.entry);
+        }
+    }
+
+    @Override
+    public void load(ConfigurationNode node) {
+        boolean wasTicking = this.isTicking();
+        super.load(node);
+        if (this.isTicking() != wasTicking) {
+            this.entry.getValueMap().notifyPlayerEntryTickedChanged(this, this.entry);
         }
     }
 

@@ -24,11 +24,13 @@ public class VariableValueMap {
     private final VariableImpl variable;
     private final Entry defaultEntry;
     private Map<String, Entry> byPlayer;
+    private int numTickedPlayerEntries;
 
     public VariableValueMap(VariableImpl variable) {
         this.variable = variable;
         this.defaultEntry = new Entry();
         this.byPlayer = Collections.emptyMap();
+        this.numTickedPlayerEntries = 0;
     }
 
     /**
@@ -114,9 +116,7 @@ public class VariableValueMap {
     public void reset() {
         // Reset tickers
         this.defaultEntry.ticker = new DefaultTicker(this.defaultEntry);
-        for (Entry e : this.byPlayer.values()) {
-            e.ticker = this.defaultEntry.ticker;
-        }
+        this.setSharedTicker();
 
         // Resets the variables to the variable name
         this.setAll(FormattedVariableValue.createDefaultValue(this.getVariableName()));
@@ -177,6 +177,24 @@ public class VariableValueMap {
         }
     }
 
+    protected void notifyPlayerEntryTickedChanged(SinglePlayerTicker ticker, Entry entry) {
+        // Make sure it still exists at all, as things could break otherwise!
+        // Do not count the default entry
+        if (entry == this.defaultEntry
+                || this.byPlayer.get(entry.playerName) != entry
+                || entry.ticker != ticker)
+        {
+            return;
+        }
+
+        // Update counter
+        if (entry.ticker.isTicking()) {
+            this.numTickedPlayerEntries++;
+        } else {
+            this.numTickedPlayerEntries--;
+        }
+    }
+
     /**
      * Updates the text based on any configured tickers
      */
@@ -184,9 +202,11 @@ public class VariableValueMap {
         if (this.defaultEntry.ticker.updateText(this.defaultEntry.text)) {
             this.defaultEntry.computePlayerText(false);
         }
-        for (Entry e : this.byPlayer.values()) {
-            if (e.ticker.updateText(e.text)) {
-                e.computePlayerText(false);
+        if (this.numTickedPlayerEntries > 0) {
+            for (Entry e : this.byPlayer.values()) {
+                if (e.ticker.updateText(e.text)) {
+                    e.computePlayerText(false);
+                }
             }
         }
     }
@@ -210,6 +230,7 @@ public class VariableValueMap {
         for (Entry e : this.byPlayer.values()) {
             e.ticker = this.defaultEntry.ticker;
         }
+        this.numTickedPlayerEntries = 0;
         return this.defaultEntry.ticker;
     }
 
@@ -429,6 +450,12 @@ public class VariableValueMap {
         public TickerBaseImpl getPlayerTicker() {
             if (this.ticker instanceof DefaultTicker) {
                 this.ticker = new SinglePlayerTicker(this.ticker, this);
+
+                // Track the number of player entries that uses tickers
+                if (this.ticker.isTicking()) {
+                    this.getValueMap().notifyPlayerEntryTickedChanged(
+                            (SinglePlayerTicker) this.ticker, this);
+                }
             }
             return this.ticker;
         }
