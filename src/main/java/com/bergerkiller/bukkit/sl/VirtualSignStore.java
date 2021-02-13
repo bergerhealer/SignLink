@@ -2,6 +2,7 @@ package com.bergerkiller.bukkit.sl;
 
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.function.Consumer;
 
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -13,6 +14,7 @@ import com.bergerkiller.bukkit.common.BlockLocation;
 import com.bergerkiller.bukkit.common.Task;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.collections.BlockMap;
+import com.bergerkiller.bukkit.common.collections.ImplicitlySharedSet;
 import com.bergerkiller.bukkit.common.utils.BlockUtil;
 import com.bergerkiller.bukkit.common.utils.MaterialUtil;
 import com.bergerkiller.bukkit.sl.API.Variable;
@@ -24,15 +26,19 @@ import com.bergerkiller.bukkit.sl.API.Variables;
  */
 public class VirtualSignStore {
     private static BlockMap<VirtualSign> virtualSigns;
+    private static ImplicitlySharedSet<VirtualSign> virtualSignsCollection = new ImplicitlySharedSet<VirtualSign>();
     private static HashSet<BlockLocation> changedSignBlocks = new HashSet<BlockLocation>();
 
     public static void deinit() {
         virtualSigns.clear();
         virtualSigns = null;
+        virtualSignsCollection.clear();
+        virtualSignsCollection = null;
     }
 
     public static void init() {
         virtualSigns = new BlockMap<VirtualSign>();
+        virtualSignsCollection = new ImplicitlySharedSet<VirtualSign>();
     }
 
     public static synchronized VirtualSign add(Block block, String[] lines) {
@@ -40,7 +46,11 @@ public class VirtualSignStore {
             return null;
         }
         VirtualSign vsign = new VirtualSign(block, lines);
-        virtualSigns.put(vsign.getPosition(), vsign);
+        VirtualSign previousValue = virtualSigns.put(vsign.getPosition(), vsign);
+        if (previousValue != null) {
+            virtualSignsCollection.remove(previousValue);
+        }
+        virtualSignsCollection.add(vsign);
         return vsign;
     }
 
@@ -49,7 +59,11 @@ public class VirtualSignStore {
             return null;
         }
         VirtualSign vsign = new VirtualSign(sign);
-        virtualSigns.put(vsign.getPosition(), vsign);
+        VirtualSign previousValue = virtualSigns.put(vsign.getPosition(), vsign);
+        if (previousValue != null) {
+            virtualSignsCollection.remove(previousValue);
+        }
+        virtualSignsCollection.add(vsign);
         return vsign;
     }
 
@@ -96,8 +110,23 @@ public class VirtualSignStore {
             }
             return sign;
         } else {
-            virtualSigns.remove(b);
+            VirtualSign previousValue = virtualSigns.remove(b);
+            if (previousValue != null) {
+                virtualSignsCollection.remove(previousValue);
+            }
             return null;
+        }
+    }
+
+    /**
+     * Supplies a consumer with every virtual sign on the server. Slightly more
+     * efficient than {@link #getAll()} as it does not require a copy.
+     *
+     * @param method
+     */
+    public static synchronized void forEachSign(Consumer<VirtualSign> method) {
+        for (VirtualSign vsign : virtualSignsCollection.cloneAsIterable()) {
+            method.accept(vsign);
         }
     }
 
@@ -133,9 +162,12 @@ public class VirtualSignStore {
      * @return True if a Virtual Sign was removed, False if not
      */
     public static synchronized boolean remove(BlockLocation signBlock) {
-        if (virtualSigns == null || virtualSigns.remove(signBlock) == null) {
+        VirtualSign removed;
+        if (virtualSigns == null || (removed = virtualSigns.remove(signBlock)) == null) {
             return false;
         }
+        virtualSignsCollection.remove(removed);
+
         for (Variable var : Variables.getAll()) {
             var.removeLocation(signBlock);
         }
@@ -145,8 +177,10 @@ public class VirtualSignStore {
     public static synchronized void removeAll(World world) {
         Iterator<VirtualSign> iter = virtualSigns.values().iterator();
         while (iter.hasNext()) {
-            if (iter.next().getWorld() == world) {
+            VirtualSign vsign = iter.next();
+            if (vsign.getWorld() == world) {
                 iter.remove();
+                virtualSignsCollection.remove(vsign);
             }
         }
     }
@@ -187,7 +221,7 @@ public class VirtualSignStore {
         }
         final int SIGN_RADIUS = 25;
         BlockLocation playerpos = new BlockLocation(forplayer.getLocation());
-        for (VirtualSign sign : virtualSigns.values()) {
+        for (VirtualSign sign : virtualSignsCollection.cloneAsIterable()) {
             BlockLocation pos = sign.getPosition();
             if (pos.world.equals(playerpos.world)) {
                 int dx = playerpos.x - pos.x;
@@ -206,13 +240,13 @@ public class VirtualSignStore {
      * @param playerName Name of the player, must be all-lowercase
      */
     public static synchronized void clearPlayer(String playerName) {
-        for (VirtualSign sign : virtualSigns.values()) {
+        for (VirtualSign sign : virtualSignsCollection.cloneAsIterable()) {
             sign.resetLines(playerName);
         }
     }
 
     public static synchronized void invalidateAll(Player player) {
-        for (VirtualSign vs : virtualSigns.values()) {
+        for (VirtualSign vs : virtualSignsCollection.cloneAsIterable()) {
             if (vs.isInRange(player)) {
                 vs.invalidate(player);
             }

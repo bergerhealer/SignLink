@@ -682,9 +682,7 @@ public class SignLink extends PluginBase {
         public void run() {
             try {
                 Variables.updateTickers();
-                for (VirtualSign sign : VirtualSignStore.getAll()) {
-                    sign.update();
-                }
+                VirtualSignStore.forEachSign(VirtualSign::update);
             } catch (Throwable t) {
                 SignLink.plugin.log(Level.SEVERE, "An error occured while updating sign text:");
                 SignLink.plugin.handle(t);
