@@ -42,7 +42,7 @@ import com.bergerkiller.bukkit.sl.API.Variable;
 import com.bergerkiller.bukkit.sl.API.Variables;
 import com.bergerkiller.bukkit.sl.impl.VariableImpl;
 import com.bergerkiller.bukkit.sl.impl.VariableMap;
-import com.bergerkiller.generated.net.minecraft.server.PacketPlayOutMapChunkHandle;
+import com.bergerkiller.generated.net.minecraft.network.protocol.game.PacketPlayOutMapChunkHandle;
 
 public class SLListener implements Listener, PacketListener {
     protected static boolean ignore = false;
