@@ -1,6 +1,7 @@
 name: SignLink
 main: com.bergerkiller.bukkit.sl.SignLink
 version: ${project.version}
+build: ${project.build.number}
 api-version: 1.13
 authors: [bergerkiller, lenis0012, timstans, bubba1234119, KamikazePlatypus, mg_1999, Friwi]
 metrics: true

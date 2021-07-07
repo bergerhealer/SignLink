@@ -13,9 +13,24 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.build.number>NO-CI</project.build.number>
     <project.serverversion>1.12-R0.1</project.serverversion>
     <project.bkcversion>1.17.1-v1-SNAPSHOT</project.bkcversion>
   </properties>
+
+  <profiles>
+    <profile>
+      <id>ci</id>
+      <activation>
+        <property>
+          <name>env.BUILD_NUMBER</name>
+        </property>
+      </activation>
+      <properties>
+        <project.build.number>${env.BUILD_NUMBER}</project.build.number>
+      </properties>
+    </profile>
+  </profiles>
 
   <repositories>
     <!-- Repo for access to CraftBukkit -->
@@ -69,74 +84,68 @@
 
   <!-- Build -->
   <build>
+    <!-- Export artifact with name that includes the build number -->
+    <finalName>${project.name}-${project.version}-${project.build.number}</finalName>
   	<defaultGoal>clean install</defaultGoal>
 
-      <!-- Resources (the filtering allows us to use project properties in plugin.yml) -->
-      <resources>
-        <resource>
-          <directory>src/main/java</directory>
-          <filtering>true</filtering>
-          <includes>
-            <include>plugin.yml</include>
-          </includes>
-        </resource>
-      </resources>
+    <!-- Resources (the filtering allows us to use project properties in plugin.yml) -->
+    <resources>
+      <resource>
+        <directory>src/main/java</directory>
+        <filtering>true</filtering>
+        <includes>
+          <include>plugin.yml</include>
+        </includes>
+      </resource>
+    </resources>
 
-      <!-- Plugins -->
-      <plugins>
+    <!-- Plugins -->
+    <plugins>
 
-        <!-- Generate a jar containing the source javadoc -->
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-javadoc-plugin</artifactId>
-          <version>3.0.1</version>
-          <configuration>
-            <failOnError>false</failOnError>
-            <doclint>none</doclint>
-            <quiet>true</quiet>
-          </configuration>
-        </plugin>
+      <!-- Generate a jar containing the source javadoc -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <version>3.0.1</version>
+        <configuration>
+          <failOnError>false</failOnError>
+          <doclint>none</doclint>
+          <quiet>true</quiet>
+        </configuration>
+      </plugin>
 
-        <!-- Generate a jar containing the java sources -->
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-source-plugin</artifactId>
-          <version>3.0.1</version>
-        </plugin>
+      <!-- Generate a jar containing the java sources -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-source-plugin</artifactId>
+        <version>3.0.1</version>
+      </plugin>
 
-        <!-- Copy artifacts to non-versioned jar name -->
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-dependency-plugin</artifactId>
-          <executions>
-            <execution>
-              <id>copy</id>
-              <phase>package</phase>
-              <goals>
-                <goal>copy</goal>
-              </goals>
-              <configuration>
-                <artifactItems>
-                  <artifactItem>
-                    <groupId>com.bergerkiller.bukkit</groupId>
-                    <artifactId>SignLink</artifactId>
-                    <version>${project.version}</version>
-                    <type>jar</type>
-                    <overWrite>true</overWrite>
-                    <outputDirectory>${project.build.directory}</outputDirectory>
-                    <destFileName>${project.name}.jar</destFileName>
-                  </artifactItem>
-                </artifactItems>
-                <overWriteReleases>false</overWriteReleases>
-                <overWriteSnapshots>true</overWriteSnapshots>
-              </configuration>
-            </execution>
-          </executions>
-        </plugin>
+      <!-- Copy the produced target to the static directory with just a base name -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <version>1.8</version>
+        <executions>
+          <!-- Prepare the version-less output jar -->
+          <execution>
+            <id>version-less-jar</id>
+            <phase>package</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <target>
+                <copy file="target/${project.name}-${project.version}-${project.build.number}.jar" tofile="target/static/${project.name}.jar"/>
+              </target>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
 
-        <!-- Compiler plugin -->
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
+      <!-- Compiler plugin -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.1</version>
         <configuration>
@@ -147,6 +156,5 @@
         </configuration>
       </plugin>
     </plugins>
-    
   </build>
 </project>
