@@ -1,14 +1,19 @@
 name: SignLink
-main: com.bergerkiller.bukkit.sl.SignLink
+dev-url: ${project.url}
 version: ${project.version}
 build: ${project.build.number}
-api-version: 1.13
-authors: [bergerkiller, lenis0012, timstans, bubba1234119, KamikazePlatypus, mg_1999, Friwi]
-metrics: true
-softdepend: [PlaceholderAPI]
-depend: [BKCommonLib]
 description: Plugin that manages the display of variables on signs in various ways
-dev-url: ${project.url}
+authors: [bergerkiller, lenis0012, timstans, bubba1234119, KamikazePlatypus, mg_1999, Friwi]
+softdepend: [BKCommonLib, PlaceholderAPI]
+api-version: 1.13
+metrics: true
+
+main: com.bergerkiller.bukkit.sl.Preloader
+preloader:
+    main: com.bergerkiller.bukkit.sl.SignLink
+    depend:
+        BKCommonLib: https://www.spigotmc.org/resources/bkcommonlib.39590/
+
 commands:
     togglesignupdate:
         description: Turns sign updating on or off
