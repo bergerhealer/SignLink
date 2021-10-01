@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.logging.Level;
 
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
@@ -17,6 +18,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.server.PluginDisableEvent;
 import org.bukkit.event.server.PluginEnableEvent;
 
+import com.bergerkiller.bukkit.common.ModuleLogger;
 import com.bergerkiller.bukkit.common.RunOnceTask;
 import com.bergerkiller.bukkit.common.utils.CommonUtil;
 import com.bergerkiller.bukkit.sl.SignLink;
@@ -34,6 +36,7 @@ import me.clip.placeholderapi.expansion.manager.LocalExpansionManager;
  */
 public class PlaceholderAPIHandlerWithExpansions implements PlaceholderAPIHandler, Listener {
     private final SignLink plugin;
+    private final ModuleLogger logger;
     private final List<Hook> hooks;
     private boolean show_on_signs;
 
@@ -47,6 +50,7 @@ public class PlaceholderAPIHandlerWithExpansions implements PlaceholderAPIHandle
     public PlaceholderAPIHandlerWithExpansions(SignLink plugin) {
         this.hooks = new ArrayList<Hook>();
         this.plugin = plugin;
+        this.logger = new ModuleLogger(plugin.getLogger(), "PlaceholderAPI");
         this.expansions = Collections.emptyMap();
         this.expansionsUpdateTask = RunOnceTask.create(plugin, this::updateExpansions);
     }
@@ -168,8 +172,11 @@ public class PlaceholderAPIHandlerWithExpansions implements PlaceholderAPIHandle
         try {
             return expansion.onRequest(player, name);
         } catch (Throwable t) {
-            t.printStackTrace();
-            return null;
+            String playerName = (player == null) ? "[null]" : player.getName();
+            this.logger.log(Level.SEVERE, "Plugin " + pluginName +
+                    " threw an exception querying expansion " + name +
+                    " for player " + playerName, t);
+            return "ERROR";
         }
     }
 

@@ -2,12 +2,14 @@ package com.bergerkiller.bukkit.sl.PAPI;
 
 import java.lang.reflect.Method;
 import java.util.Map;
+import java.util.logging.Level;
 
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import com.bergerkiller.bukkit.common.ModuleLogger;
 import com.bergerkiller.bukkit.common.TickTracker;
 import com.bergerkiller.bukkit.sl.API.Variable;
 import com.bergerkiller.bukkit.sl.API.Variables;
@@ -23,6 +25,7 @@ import com.bergerkiller.mountiplex.reflection.util.fast.Invoker;
 public final class PlaceholderAPIHandlerWithHook implements PlaceholderAPIHandler {
     private final PlaceholderAPIHandle handle;
     private final JavaPlugin plugin;
+    private final ModuleLogger logger;
     private final Object hook;
     private boolean registeredSLHook;
     private Map<String, Object> pluginHooks;
@@ -31,6 +34,7 @@ public final class PlaceholderAPIHandlerWithHook implements PlaceholderAPIHandle
 
     public PlaceholderAPIHandlerWithHook(JavaPlugin plugin) {
         this.plugin = plugin;
+        this.logger = new ModuleLogger(plugin.getLogger(), "PlaceholderAPI");
         this.registeredSLHook = false;
 
         // Find PlaceholderHook class type, must exist
@@ -172,8 +176,11 @@ public final class PlaceholderAPIHandlerWithHook implements PlaceholderAPIHandle
         try {
             return this.handle.makePlaceholderRequest(hook, player, name);
         } catch (Throwable t) {
-            t.printStackTrace();
-            return null;
+            String playerName = (player == null) ? "[null]" : player.getName();
+            this.logger.log(Level.SEVERE, "Plugin " + pluginName +
+                    " threw an exception querying expansion " + name +
+                    " for player " + playerName, t);
+            return "ERROR";
         }
     }
 
