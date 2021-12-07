@@ -27,8 +27,7 @@ import com.bergerkiller.bukkit.common.MessageBuilder;
 import com.bergerkiller.bukkit.common.PluginBase;
 import com.bergerkiller.bukkit.common.Task;
 import com.bergerkiller.bukkit.common.metrics.MyDependingPluginsGraph;
-import com.bergerkiller.bukkit.common.protocol.PacketListener;
-import com.bergerkiller.bukkit.common.protocol.PacketType;
+import com.bergerkiller.bukkit.common.protocol.PacketBlockStateChangeListener;
 import com.bergerkiller.bukkit.common.utils.ParseUtil;
 import com.bergerkiller.bukkit.common.utils.StringUtil;
 import com.bergerkiller.bukkit.common.utils.WorldUtil;
@@ -93,7 +92,7 @@ public class SignLink extends PluginBase {
         plugin = this;
 
         this.register((Listener) this.listener);
-        this.register((PacketListener) this.listener, PacketType.OUT_TILE_ENTITY_DATA, PacketType.OUT_UPDATE_SIGN, PacketType.OUT_MAP_CHUNK);
+        this.register(new SLBlockStateChangeListener(), PacketBlockStateChangeListener.LISTENED_TYPES);
         this.register("togglesignupdate", "reloadsignlink", "variable");
 
         FileConfiguration config = new FileConfiguration(this);
