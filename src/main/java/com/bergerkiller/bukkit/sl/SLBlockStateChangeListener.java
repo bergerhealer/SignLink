@@ -43,6 +43,11 @@ class SLBlockStateChangeListener implements PacketBlockStateChangeListener {
         // In case this was also changed, cleans up other stuff
         sign.scheduleVerify();
 
+        // Ignore vanilla signs
+        if (!sign.hasVariables()) {
+            return true;
+        }
+
         CommonTagCompound metadata = change.getMetadata();
 
         final VirtualLines lines = sign.getLines(player);
