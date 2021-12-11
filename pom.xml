@@ -16,6 +16,7 @@
     <project.build.number>NO-CI</project.build.number>
     <project.serverversion>1.12-R0.1</project.serverversion>
     <project.bkcversion>1.18-v1-SNAPSHOT</project.bkcversion>
+    <project.preloaderversion>1.5</project.preloaderversion>
   </properties>
 
   <profiles>
@@ -69,6 +70,12 @@
       <scope>provided</scope>
   	</dependency>
     <dependency>
+      <groupId>com.bergerkiller.bukkit.preloader</groupId>
+      <artifactId>PluginPreloader</artifactId>
+      <version>${project.preloaderversion}</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
       <version>4.11</version>
@@ -119,6 +126,35 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-source-plugin</artifactId>
         <version>3.0.1</version>
+      </plugin>
+
+      <!-- Shade in the preloader -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.2.3</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <createDependencyReducedPom>true</createDependencyReducedPom>
+          <relocations>
+            <relocation>
+              <pattern>com.bergerkiller.bukkit.preloader</pattern>
+              <shadedPattern>com.bergerkiller.bukkit.sl</shadedPattern>
+            </relocation>
+          </relocations>
+          <artifactSet>
+            <includes>
+              <include>com.bergerkiller.bukkit.preloader</include>
+            </includes>
+          </artifactSet>
+        </configuration>
       </plugin>
 
       <!-- Copy the produced target to the static directory with just a base name -->
