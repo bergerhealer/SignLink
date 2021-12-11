@@ -88,7 +88,7 @@ public class VirtualSign extends VirtualSignStore {
         remove(this.location);
     }
 
-    public void resetLines() {
+    public synchronized void resetLines() {
         this.playerlines.clear();
     }
 
@@ -96,7 +96,7 @@ public class VirtualSign extends VirtualSignStore {
         resetLines(player.getName().toLowerCase());
     }
 
-    public void resetLines(String playerName) {
+    public synchronized void resetLines(String playerName) {
         this.playerlines.remove(playerName);
     }
 
@@ -115,7 +115,7 @@ public class VirtualSign extends VirtualSignStore {
      *                   Specifying null will return the default lines.
      * @return lines for this player
      */
-    public VirtualLines getLines(String playerName) {
+    public synchronized VirtualLines getLines(String playerName) {
         if (playerName == null) {
             return getLines();
         }
@@ -156,7 +156,7 @@ public class VirtualSign extends VirtualSignStore {
      * @param value Value to store on the line
      * @param forPlayerFilter Filters what players should be updated
      */
-    public void setLine(int index, String value, VariableTextPlayerFilter forPlayerFilter) {
+    public synchronized void setLine(int index, String value, VariableTextPlayerFilter forPlayerFilter) {
 //        System.out.println("Set line "+index+" to "+value+" for "+(players==null?null:players.length));
         if (forPlayerFilter.isAll()) {
             //Set all lines to this value at this index
@@ -218,7 +218,7 @@ public class VirtualSign extends VirtualSignStore {
      * @param player Name of the player to get it for, all-lowercase
      * @return Line for this player
      */
-    public String getLine(int index, String player) {
+    public synchronized String getLine(int index, String player) {
         return this.playerlines.getOrDefault(player, this.defaultlines).get(index);
     }
 
