@@ -259,6 +259,12 @@ public class PlaceholderAPIHandlerWithExpansions implements PlaceholderAPIHandle
             return Arrays.asList(Variables.getNames());
         }
 
+     
+        @Override
+        public boolean persist() {
+            return true; // This is required or else PlaceholderAPI will unregister the Expansion on reload
+        }
+        
         @Override
         public String onRequest(final OfflinePlayer player, String identifier) {
             Variable variable = Variables.getIfExists(identifier);
