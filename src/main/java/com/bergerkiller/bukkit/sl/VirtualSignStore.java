@@ -14,7 +14,7 @@ import com.bergerkiller.bukkit.common.BlockLocation;
 import com.bergerkiller.bukkit.common.Task;
 import com.bergerkiller.bukkit.common.bases.IntVector3;
 import com.bergerkiller.bukkit.common.collections.BlockMap;
-import com.bergerkiller.bukkit.common.collections.ImplicitlySharedSet;
+import com.bergerkiller.bukkit.common.collections.ImplicitlySharedList;
 import com.bergerkiller.bukkit.common.utils.BlockUtil;
 import com.bergerkiller.bukkit.common.utils.MaterialUtil;
 import com.bergerkiller.bukkit.sl.API.Variable;
@@ -26,7 +26,7 @@ import com.bergerkiller.bukkit.sl.API.Variables;
  */
 public class VirtualSignStore {
     private static BlockMap<VirtualSign> virtualSigns;
-    private static ImplicitlySharedSet<VirtualSign> virtualSignsCollection = new ImplicitlySharedSet<VirtualSign>();
+    private static ImplicitlySharedList<VirtualSign> virtualSignsCollection = new ImplicitlySharedList<VirtualSign>();
     private static HashSet<BlockLocation> changedSignBlocks = new HashSet<BlockLocation>();
 
     public static void deinit() {
@@ -38,7 +38,7 @@ public class VirtualSignStore {
 
     public static void init() {
         virtualSigns = new BlockMap<VirtualSign>();
-        virtualSignsCollection = new ImplicitlySharedSet<VirtualSign>();
+        virtualSignsCollection = new ImplicitlySharedList<VirtualSign>();
     }
 
     public static synchronized VirtualSign add(Block block, String[] lines) {
