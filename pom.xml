@@ -5,7 +5,7 @@
 
   <groupId>com.bergerkiller.bukkit</groupId>
   <artifactId>SignLink</artifactId>
-  <version>1.18.1-v2-SNAPSHOT</version>
+  <version>1.19.2-v1-SNAPSHOT</version>
   <packaging>jar</packaging>
 
   <name>SignLink</name>
@@ -15,7 +15,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.build.number>NO-CI</project.build.number>
     <project.serverversion>1.12-R0.1</project.serverversion>
-    <project.bkcversion>1.18-v1-SNAPSHOT</project.bkcversion>
+    <project.bkcversion>1.19.2-v1</project.bkcversion>
     <project.preloaderversion>1.6</project.preloaderversion>
   </properties>
 
