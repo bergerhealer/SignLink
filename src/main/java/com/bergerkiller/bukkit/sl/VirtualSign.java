@@ -11,10 +11,10 @@ import org.bukkit.block.Sign;
 import org.bukkit.entity.Player;
 
 import com.bergerkiller.bukkit.common.BlockLocation;
+import com.bergerkiller.bukkit.common.block.SignChangeTracker;
 import com.bergerkiller.bukkit.common.protocol.CommonPacket;
 import com.bergerkiller.bukkit.common.utils.BlockUtil;
 import com.bergerkiller.bukkit.common.utils.EntityUtil;
-import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.bergerkiller.bukkit.common.utils.MaterialUtil;
 import com.bergerkiller.bukkit.common.utils.PacketUtil;
 import com.bergerkiller.bukkit.common.utils.PlayerUtil;
@@ -27,7 +27,7 @@ import com.bergerkiller.bukkit.sl.API.Variables;
  */
 public class VirtualSign extends VirtualSignStore {
     private final BlockLocation location;
-    private Sign sign;
+    private SignChangeTracker sign;
     private final String[] oldlines;
     private final HashMap<String, VirtualLines> playerlines = new HashMap<String, VirtualLines>();
     private final VirtualLines defaultlines;
@@ -48,7 +48,8 @@ public class VirtualSign extends VirtualSignStore {
             throw new IllegalArgumentException("Input line count invalid: " + lines.length);
         }
         this.location = new BlockLocation(signLocation);
-        this.oldlines = LogicUtil.cloneArray(lines);
+        this.sign = null;
+        this.oldlines = lines.clone();
         this.defaultlines = new VirtualLines(this.oldlines);
         this._isMidLinkSign = false;
         this.initCheckCounter();
@@ -61,9 +62,9 @@ public class VirtualSign extends VirtualSignStore {
             lines = new String[] {"", "", "", ""};
         }
 
-        this.sign = sign;
+        this.sign = SignChangeTracker.track(sign);
         this.location = new BlockLocation(sign.getBlock());
-        this.oldlines = LogicUtil.cloneArray(lines);
+        this.oldlines = lines.clone();
         this.defaultlines = new VirtualLines(this.oldlines);
         this._isMidLinkSign = false;
         this.initCheckCounter();
@@ -226,7 +227,7 @@ public class VirtualSign extends VirtualSignStore {
         if (this.sign == null) {
             return this.oldlines;
         } else {
-            return this.sign.getLines();
+            return this.sign.getSign().getLines();
         }
     }
 
@@ -234,12 +235,12 @@ public class VirtualSign extends VirtualSignStore {
         if (this.sign == null) {
             return this.oldlines[index];
         } else {
-            return this.sign.getLine(index);
+            return this.sign.getSign().getLine(index);
         }
     }
 
     public void setRealLine(int index, String line) {
-        this.sign.setLine(index, line);
+        this.sign.getSign().setLine(index, line);
     }
 
     /**
@@ -302,6 +303,28 @@ public class VirtualSign extends VirtualSignStore {
     }
 
     /**
+     * Verifies the already tracked sign still exists. Handles changes that are detected.
+     *
+     * @return True if the sign is valid, False if not
+     */
+    public boolean verifySign() {
+        if (!this.sign.update()) {
+            return true; // No changes
+        }
+
+        // Check whether sign got removed
+        if (this.sign.isRemoved()) {
+            this.sign = null;
+            this.remove();
+            return false;
+        }
+
+        // Detect misc. changes in orientation/lines of text
+        detectLineChanges();
+        return true;
+    }
+
+    /**
      * Loads the sign from the world if it was not loaded yet
      * 
      * @return True if the sign is valid, False if not
@@ -321,35 +344,42 @@ public class VirtualSign extends VirtualSignStore {
                 this.remove();
                 return false;
             }
-            this.sign = BlockUtil.getSign(block);
-            if (this.sign == null || this.sign.getLines() == null) {
+            Sign signAtBlock = BlockUtil.getSign(block);
+            if (signAtBlock == null || signAtBlock.getLines() == null) {
                 this.remove();
                 return false;
             }
 
             // Check for changes to the text on the sign (external cause)
-            boolean changed = false;
-            for (int i = 0; i < 4; i++) {
-                if (!this.oldlines[i].equals(this.sign.getLine(i))) {
-                    Block signblock = this.getBlock();
-                    String varname = Variables.parseVariableName(this.oldlines[i]);
-                    if (varname != null) {
-                        Variables.get(varname).removeLocation(signblock, i);
-                    }
-                    this.oldlines[i] = this.sign.getLine(i);
-                    this.setLine(i, this.oldlines[i], VariableTextPlayerFilter.all());
-                    varname = Variables.parseVariableName(this.oldlines[i]);
-                    if (varname != null) {
-                        Variables.get(varname).addLocation(signblock, i);
-                    }
-                    changed = true;
-                }
-            }
-            if (changed) {
-                this.hasVariablesOnSign = this.hasVariablesRefresh();
-            }
+            this.sign = SignChangeTracker.track(signAtBlock);
+            detectLineChanges();
         }
         return true;
+    }
+
+    private void detectLineChanges() {
+        Sign signAtBlock = this.sign.getSign();
+        boolean changed = false;
+        for (int i = 0; i < 4; i++) {
+            String currentLine = signAtBlock.getLine(i);
+            if (!this.oldlines[i].equals(currentLine)) {
+                Block signblock = this.getBlock();
+                String varname = Variables.parseVariableName(this.oldlines[i]);
+                if (varname != null) {
+                    Variables.get(varname).removeLocation(signblock, i);
+                }
+                this.oldlines[i] = currentLine;
+                this.setLine(i, this.oldlines[i], VariableTextPlayerFilter.all());
+                varname = Variables.parseVariableName(this.oldlines[i]);
+                if (varname != null) {
+                    Variables.get(varname).addLocation(signblock, i);
+                }
+                changed = true;
+            }
+        }
+        if (changed) {
+            this.hasVariablesOnSign = this.hasVariablesRefresh();
+        }
     }
 
     /**
@@ -366,7 +396,7 @@ public class VirtualSign extends VirtualSignStore {
             return false;
         }
 
-        this.sign = sign;
+        this.sign = SignChangeTracker.track(sign);
         return true;
     }
 
@@ -437,31 +467,39 @@ public class VirtualSign extends VirtualSignStore {
      * Updates all nearby players with the live text information
      */
     public void update() {
-        // Force a verify after a new sign is created
-        if (!this.hasBeenVerified) {
-            this.hasBeenVerified = true;
-            this.sign = null;
-        }
+        if (this.sign == null) {
+            // Load sign for the first time
+            if (this.loadSign()) {
+                this.hasBeenVerified = true;
+            } else {
+                return; // Removed
+            }
 
-        // Refresh the Sign state now and then (just in case the tile got swapped or destroyed)
-        // Only do this for signs that have variables on them. Otherwise check less often.
-        // When disabled, don't do a refresh of the sign at all when no variables are displayed.
-        if (this.sign != null) {
+        } else if (!this.hasBeenVerified) {
+            // Must verify right now!
+            this.hasBeenVerified = true;
+            if (!this.verifySign()) {
+                return;
+            }
+
+        } else {
+            // Refresh the Sign state now and then (just in case the tile got swapped or destroyed)
+            // Only do this for signs that have variables on them. Otherwise check less often.
+            // When disabled, don't do a refresh of the sign at all when no variables are displayed.
             this.signcheckcounter++;
             if (this.signcheckcounter == SIGN_CHECK_INTERVAL && this.hasVariablesRefresh()) {
                 this.signcheckcounter = 0;
-                this.sign = null;
+                if (!this.verifySign()) {
+                    return;
+                }
             } else if (this.signcheckcounter >= SIGN_CHECK_INTERVAL_NOVAR) {
                 this.signcheckcounter = 0;
                 if (SignLink.plugin.discoverSignChanges()) {
-                    this.sign = null;
+                    if (!this.verifySign()) {
+                        return;
+                    }
                 }
             }
-        }
-
-        // When the sign is re-loaded, make sure to also refresh the isLoaded state just in case
-        if (!this.loadSign()) {
-            return;
         }
 
         // Send updated sign text to nearby players
@@ -491,8 +529,8 @@ public class VirtualSign extends VirtualSignStore {
     }
 
     public void sendLines(VirtualLines lines, Player player) {
-        if (SignLink.updateSigns && player != null) {
-            CommonPacket updatePacket = BlockUtil.getUpdatePacket(sign);
+        if (SignLink.updateSigns && player != null && sign != null) {
+            CommonPacket updatePacket = BlockUtil.getUpdatePacket(sign.getSign());
             if (updatePacket != null) {
                 SLBlockStateChangeListener.applyDirect(this, player, updatePacket);
                 PacketUtil.sendPacket(player, updatePacket, false); // Send and skip listeners
