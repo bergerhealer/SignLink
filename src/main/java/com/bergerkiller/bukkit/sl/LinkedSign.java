@@ -10,8 +10,9 @@ import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 
-import com.bergerkiller.bukkit.common.BlockLocation;
 import com.bergerkiller.bukkit.common.ToggledState;
+import com.bergerkiller.bukkit.common.offline.OfflineBlock;
+import com.bergerkiller.bukkit.common.offline.OfflineWorld;
 import com.bergerkiller.bukkit.common.utils.BlockUtil;
 import com.bergerkiller.bukkit.common.utils.ChunkUtil;
 import com.bergerkiller.bukkit.common.utils.FaceUtil;
@@ -24,7 +25,7 @@ import com.bergerkiller.bukkit.common.wrappers.BlockData;
  * Links multiple (Virtual) Signs together to create a single, long, horizontal line of text which can be altered
  */
 public class LinkedSign {
-    public BlockLocation location;
+    public OfflineBlock location;
     public final int line;
     private final ToggledState updateSignOrder = new ToggledState();
     public final SignDirection direction;
@@ -34,14 +35,14 @@ public class LinkedSign {
     private static HashSet<Block> loopCheck = new HashSet<Block>(); // Used to prevent server freeze when finding signs
 
     public LinkedSign(Block from, int line) {
-        this(new BlockLocation(from), line, findDirection(from, line));
+        this(OfflineBlock.of(from), line, findDirection(from, line));
     }
 
-    public LinkedSign(String worldname, int x, int y, int z, int lineAt, SignDirection direction) {
-        this(new BlockLocation(worldname, x, y, z), lineAt, direction);
+    public LinkedSign(OfflineWorld world, int x, int y, int z, int lineAt, SignDirection direction) {
+        this(world.getBlockAt(x, y, z), lineAt, direction);
     }
 
-    public LinkedSign(BlockLocation location, int lineAt, SignDirection direction) {
+    public LinkedSign(OfflineBlock location, int lineAt, SignDirection direction) {
         this.location = location;
         this.line = lineAt;
         this.direction = direction;
@@ -132,7 +133,7 @@ public class LinkedSign {
      * @return Linked sign starting block
      */
     public Block getStartBlock() {
-        return this.location.isLoaded() ? this.location.getBlock() : null;
+        return this.location.getLoadedBlock();
     }
 
     /**

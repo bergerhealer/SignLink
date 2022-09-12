@@ -8,8 +8,9 @@ import org.bukkit.Bukkit;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 
-import com.bergerkiller.bukkit.common.BlockLocation;
 import com.bergerkiller.bukkit.common.collections.ImplicitlySharedList;
+import com.bergerkiller.bukkit.common.offline.OfflineBlock;
+import com.bergerkiller.bukkit.common.offline.OfflineWorld;
 import com.bergerkiller.bukkit.sl.LinkedSign;
 import com.bergerkiller.bukkit.sl.SignDirection;
 import com.bergerkiller.bukkit.sl.VirtualSign;
@@ -149,8 +150,8 @@ public abstract class Variable implements VariableValue {
         return this.name;
     }
 
-    public boolean addLocation(String worldname, int x, int y, int z, int lineAt, SignDirection direction) {
-        return addLocation(new LinkedSign(worldname, x, y, z, lineAt, direction));
+    public boolean addLocation(OfflineWorld world, int x, int y, int z, int lineAt, SignDirection direction) {
+        return addLocation(new LinkedSign(world, x, y, z, lineAt, direction));
     }
 
     public boolean addLocation(Block signblock, int lineAt) {
@@ -189,10 +190,10 @@ public abstract class Variable implements VariableValue {
     protected abstract void updateSign(LinkedSign sign);
 
     public boolean removeLocation(Block signblock, int lineAt) {
-        return removeLocation(new BlockLocation(signblock), lineAt);
+        return removeLocation(OfflineBlock.of(signblock), lineAt);
     }
 
-    public boolean removeLocation(BlockLocation signblock, int lineAt) {
+    public boolean removeLocation(OfflineBlock signblock, int lineAt) {
         boolean rem = false;
         Iterator<LinkedSign> iter = this.boundTo.iterator();
         while (iter.hasNext()) {
@@ -211,7 +212,7 @@ public abstract class Variable implements VariableValue {
         return this.removeLocation(signblock, -1);
     }
 
-    public boolean removeLocation(BlockLocation signblock) {
+    public boolean removeLocation(OfflineBlock signblock) {
         return this.removeLocation(signblock, -1);
     }
 

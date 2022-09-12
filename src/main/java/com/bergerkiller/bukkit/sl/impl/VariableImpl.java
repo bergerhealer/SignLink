@@ -215,7 +215,7 @@ public class VariableImpl extends Variable {
      */
     public void updateSignOrder(Block near) {
         for (LinkedSign sign : this.boundTo) {
-            if (!sign.location.world.equals(near.getWorld().getName())) {
+            if (sign.location.getLoadedWorld() != near.getWorld()) {
                 continue;
             }
             ArrayList<VirtualSign> signs = sign.getSigns();
@@ -239,7 +239,7 @@ public class VariableImpl extends Variable {
      */
     public void updateSignOrder(World world) {
         for (LinkedSign sign : getSigns()) {
-            if (sign.location.world.equals(world.getName())) {
+            if (sign.location.getLoadedWorld() == world) {
                 sign.updateSignOrder();
             }
         }
@@ -248,8 +248,8 @@ public class VariableImpl extends Variable {
     public boolean find(List<LinkedSign> signs, List<VariableImpl> variables, Block at) {
         boolean found = false;
         for (LinkedSign sign : boundTo) {
-            if (sign.location.x == at.getX() && sign.location.y == at.getY() && sign.location.z == at.getZ()) {
-                if (sign.location.world.equals(at.getWorld().getName())) {
+            if (sign.location.getX() == at.getX() && sign.location.getY() == at.getY() && sign.location.getZ() == at.getZ()) {
+                if (sign.location.getLoadedWorld() == at.getWorld()) {
                     found = true;
                     if (signs != null) signs.add(sign);
                     if (variables != null) variables.add(this);

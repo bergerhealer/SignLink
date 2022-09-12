@@ -12,6 +12,7 @@ import org.bukkit.entity.Player;
 
 import com.bergerkiller.bukkit.common.BlockLocation;
 import com.bergerkiller.bukkit.common.block.SignChangeTracker;
+import com.bergerkiller.bukkit.common.offline.OfflineBlock;
 import com.bergerkiller.bukkit.common.protocol.CommonPacket;
 import com.bergerkiller.bukkit.common.utils.BlockUtil;
 import com.bergerkiller.bukkit.common.utils.EntityUtil;
@@ -26,7 +27,8 @@ import com.bergerkiller.bukkit.sl.API.Variables;
  * It takes care of per-player text and text updating in general.
  */
 public class VirtualSign extends VirtualSignStore {
-    private final BlockLocation location;
+    private final BlockLocation blockLocation;
+    private final OfflineBlock location;
     private SignChangeTracker sign;
     private final String[] oldlines;
     private final HashMap<String, VirtualLines> playerlines = new HashMap<String, VirtualLines>();
@@ -47,7 +49,8 @@ public class VirtualSign extends VirtualSignStore {
         if (lines.length < VirtualLines.LINE_COUNT) {
             throw new IllegalArgumentException("Input line count invalid: " + lines.length);
         }
-        this.location = new BlockLocation(signLocation);
+        this.location = OfflineBlock.of(signLocation);
+        this.blockLocation = new BlockLocation(signLocation);
         this.sign = null;
         this.oldlines = lines.clone();
         this.defaultlines = new VirtualLines(this.oldlines);
@@ -63,7 +66,8 @@ public class VirtualSign extends VirtualSignStore {
         }
 
         this.sign = SignChangeTracker.track(sign);
-        this.location = new BlockLocation(sign.getBlock());
+        this.location = OfflineBlock.of(this.sign.getBlock());
+        this.blockLocation = new BlockLocation(this.sign.getBlock());
         this.oldlines = lines.clone();
         this.defaultlines = new VirtualLines(this.oldlines);
         this._isMidLinkSign = false;
@@ -250,19 +254,19 @@ public class VirtualSign extends VirtualSignStore {
      * @return world the sign is in
      */
     public World getWorld() {
-        return this.location.getWorld();
+        return this.location.getLoadedWorld();
     }
 
     public int getX() {
-        return this.location.x;
+        return this.location.getX();
     }
 
     public int getY() {
-        return this.location.y;
+        return this.location.getY();
     }
 
     public int getZ() {
-        return this.location.z;
+        return this.location.getZ();
     }
 
     public int getChunkX() {
@@ -274,13 +278,13 @@ public class VirtualSign extends VirtualSignStore {
     }
 
     /**
-     * Gets the block this sign is at. If the world the isgn is in is unloaded,
+     * Gets the block this sign is at. If the world the sign is in is unloaded,
      * this function will return null.
      * 
      * @return block of the sign
      */
     public Block getBlock() {
-        return this.location.getBlock();
+        return this.location.getLoadedBlock();
     }
 
     /**
@@ -290,7 +294,7 @@ public class VirtualSign extends VirtualSignStore {
      * @return location the sign is in
      */
     public Location getLocation() {
-        return this.location.getLocation();
+        return this.blockLocation.getLocation();
     }
 
     /**
@@ -299,6 +303,15 @@ public class VirtualSign extends VirtualSignStore {
      * @return block location
      */
     public BlockLocation getPosition() {
+        return this.blockLocation;
+    }
+
+    /**
+     * Gets the Offline Block position of the sign.
+     *
+     * @return offline block position
+     */
+    public OfflineBlock getOfflineBlock() {
         return this.location;
     }
 
@@ -332,7 +345,7 @@ public class VirtualSign extends VirtualSignStore {
     public boolean loadSign() {
         if (this.sign == null) {
             // Check loaded. If not loaded, remove ourselves.
-            if (!this.location.isLoaded()) {
+            if (!this.blockLocation.isLoaded()) {
                 this.remove();
                 return false;
             }
