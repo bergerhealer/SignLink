@@ -44,29 +44,45 @@ public class StyledString extends ArrayList<StyledCharacter> {
         // Turn every character into a 'styled' character token
         // Every single character must know what styles are applied in case of cut-off
         StyledCharacter endStyle = this.getEndStyle();
-        ChatColor currentColor = endStyle.color;
+        StyledColor currentColor = endStyle.color;
         ChatColor[] currentFormats = endStyle.formats;
         boolean hasFormatting = false;
         for (int i = 0; i < text.length(); i++) {
             char c = text.charAt(i);
-            if (c == StringUtil.CHAT_STYLE_CHAR) {
-                hasFormatting = true;
-                if (++i >= text.length()) break;
-
-                // Handle chat formatting characters
-                ChatColor cc = StringUtil.getColor(text.charAt(i), currentColor);
-                if (cc.isColor()) {
-                    currentColor = cc;
-                } else if (cc == ChatColor.RESET) {
-                    currentFormats = new ChatColor[0];
-                    currentColor = ChatColor.BLACK;
-                } else if (!LogicUtil.contains(cc, currentFormats)) {
-                    currentFormats = Arrays.copyOf(currentFormats, currentFormats.length + 1);
-                    currentFormats[currentFormats.length - 1] = cc;
-                }
-            } else {
+            if (c != StringUtil.CHAT_STYLE_CHAR) {
                 // New character
                 this.add(new StyledCharacter(c, currentColor, currentFormats));
+                continue;
+            }
+
+            hasFormatting = true;
+            if (++i >= text.length()) break;
+            char code = text.charAt(i);
+
+            // Handle legacy chat color characters
+            if ((code >= '0' && code <= '9') || (code >= 'a' && code <= 'f') || (code >= 'A' && code <= 'F')) {
+                currentColor = StyledColor.byColorCode(code);
+                continue;
+            }
+
+            // Handle hex color extension (bungeecord)
+            if (code == 'x' || code == 'X') {
+                StyledColor hexColor = StyledColor.decodeHex(text, i - 1);
+                if (hexColor != null) {
+                    currentColor = hexColor;
+                    i += 12; // Skip the 6 style chars + hex colors too
+                }
+                continue;
+            }
+
+            // Other format characters
+            ChatColor cc = ChatColor.getByChar(code);
+            if (cc == ChatColor.RESET) {
+                currentFormats = new ChatColor[0];
+                currentColor = StyledColor.NONE;
+            } else if (cc != null && !LogicUtil.contains(cc, currentFormats)) {
+                currentFormats = Arrays.copyOf(currentFormats, currentFormats.length + 1);
+                currentFormats[currentFormats.length - 1] = cc;
             }
         }
         if (this.isEmpty() && hasFormatting) {
@@ -182,8 +198,8 @@ public class StyledString extends ArrayList<StyledCharacter> {
 
     @Override
     public String toString() {
-        ChatColor currentColor = ChatColor.BLACK;
-        ChatColor[] currentFormats = new ChatColor[0];
+        StyledColor currentColor = StyledColor.NONE;
+        ChatColor[] currentFormats = StyledCharacter.NO_FORMATS;
         StringBuilder result = new StringBuilder();
         boolean isFormatReset;
         for (StyledCharacter sc : this) {
@@ -199,10 +215,8 @@ public class StyledString extends ArrayList<StyledCharacter> {
                 if (isFormatReset) {
                     // Format reset. Reset and then add all the new formats.
                     result.append(StringUtil.CHAT_STYLE_CHAR).append(ChatColor.RESET.getChar());
-                    for (ChatColor format : sc.formats){
-                        result.append(StringUtil.CHAT_STYLE_CHAR).append(format.getChar());
-                    }
-                    currentColor = ChatColor.BLACK; // current color resets too
+                    sc.appendFormats(result);
+                    currentColor = StyledColor.NONE; // current color resets too
                 } else {
                     // Check for formats that have been added
                     for (ChatColor newFormat : sc.formats) {
@@ -214,9 +228,15 @@ public class StyledString extends ArrayList<StyledCharacter> {
                 currentFormats = sc.formats;
             }
             // Handle color changes
-            if (currentColor != sc.color) {
+            if (!currentColor.sameFormat(sc.color)) {
                 currentColor = sc.color;
-                result.append(StringUtil.CHAT_STYLE_CHAR).append(currentColor.getChar());
+                if (currentColor != StyledColor.NONE) {
+                    result.append(currentColor.format());
+                } else if (!isFormatReset) {
+                    // Reset and re-apply all formatting rules (presumably none, as otherwise there'd be a reset)
+                    result.append(currentColor.format());
+                    sc.appendFormats(result);
+                }
             }
             // Append the actual character of interest
             if (!sc.isStyleOnly()) {
