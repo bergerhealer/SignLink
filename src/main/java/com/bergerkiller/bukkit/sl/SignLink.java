@@ -41,6 +41,7 @@ import com.bergerkiller.bukkit.sl.PAPI.PlaceholderAPIHandler;
 import com.bergerkiller.bukkit.sl.PAPI.PlaceholderAPIHandlerWithExpansions;
 import com.bergerkiller.bukkit.sl.PAPI.PlaceholderAPIHandlerWithHook;
 import com.bergerkiller.bukkit.sl.impl.VariableMap;
+import com.bergerkiller.bukkit.sl.impl.format.FormatCommandInjector;
 
 public class SignLink extends PluginBase {
     public static SignLink plugin;
@@ -535,6 +536,7 @@ public class SignLink extends PluginBase {
                 sender.sendMessage(ChatColor.YELLOW + "Variable value emptied!");
             } else {
                 String value = StringUtil.ampToColor(StringUtil.join(" ", args));
+                value = FormatCommandInjector.process(sender, value);
                 if (var.global()) {
                     var.variable.set(value);
                 } else {
