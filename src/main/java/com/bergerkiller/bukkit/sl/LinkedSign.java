@@ -266,32 +266,47 @@ public class LinkedSign {
             while ((start = nextSign(start)) != null) {
                 VirtualSign sign = VirtualSign.getOrCreate(start);
                 String realline = sign.getRealLine(this.line);
-                int index1 = realline.indexOf('%');
-                int index2 = realline.lastIndexOf('%');
-                if (index1 != -1) {
-                    // End delimiter - check whether the sign is 'valid'
-                    // Only if a single % is on the sign, can it be used as a last sign
-                    if (index1 == 0) {
-                        char rightOf = (realline.length() == 1) ? ' ' : realline.charAt(index1 + 1);
-                        if (rightOf != ' ' && rightOf != '%') {
-                            // No space right of the % or %%, stop!
-                            break;
+                boolean isEndSign = false;
+                if (realline.equals("%")) {
+                    // End delimiter (sign is included)
+                    // Works for both left and right mode
+                    isEndSign = true;
+                } else {
+                    int index1 = realline.indexOf('%');
+                    int index2 = realline.lastIndexOf('%');
+                    if (index1 != -1) {
+                        // End delimiter - check whether the sign is 'valid'
+                        // Only if a single % is on the sign, can it be used as a last sign
+                        if (index1 == 0) {
+                            char rightOf = (realline.length() == 1) ? ' ' : realline.charAt(index1 + 1);
+                            if (rightOf == ' ') {
+                                isEndSign = true;
+                            } else if (rightOf != '%') {
+                                // No space right of the % or %%, stop!
+                                break;
+                            }
+                        } else if (index2 == realline.length() - 1) {
+                            char leftOf = (realline.length() == 1) ? ' ' : realline.charAt(index2 - 1);
+                            if (leftOf == ' ') {
+                                isEndSign = true;
+                            } else if (leftOf != '%') {
+                                // No space left of the % or %%, stop!
+                                break;
+                            }
+                        } else {
+                            //centered - surrounded by spaces?
+                            if (realline.charAt(index1 - 1) != ' ') break;
+                            if (realline.charAt(index2 + 1) != ' ') break;
                         }
-                    } else if (index2 == realline.length() - 1) {
-                        char leftOf = (realline.length() == 1) ? ' ' : realline.charAt(index2 - 1);
-                        if (leftOf != ' ' && leftOf != '%') {
-                            // No space left of the % or %%, stop!
-                            break;
-                        }
-                    } else {
-                        //centered - surrounded by spaces?
-                        if (realline.charAt(index1 - 1) != ' ') break;
-                        if (realline.charAt(index2 + 1) != ' ') break;
                     }
                 }
+
                 sign.setMidLinkSign(true);
                 this.displaySigns.add(sign);
                 signsRemoved.remove(sign);
+                if (isEndSign) {
+                    break;
+                }
             }
             if (this.direction == SignDirection.LEFT) {
                 Collections.reverse(this.displaySigns);
