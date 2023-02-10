@@ -102,8 +102,8 @@ public class StyledString extends ArrayList<StyledCharacter> {
     /**
      * Gets the style used at the end of the current String.
      * If this String is empty, the start style is returned instead.
-     * This start style is set using {@link #appendString(StyledCharacter, String)} and
-     * {@link #setToString(StyledCharacter, String)}.
+     * This start style is set using {@link #append(String)} and
+     * {@link #setTo(String)}.
      * 
      * @return end style character
      */

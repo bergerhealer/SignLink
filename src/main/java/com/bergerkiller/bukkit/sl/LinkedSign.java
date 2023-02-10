@@ -5,8 +5,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 
+import com.bergerkiller.bukkit.common.MaterialBooleanProperty;
+import com.bergerkiller.bukkit.common.MaterialTypeProperty;
 import org.bukkit.Chunk;
-import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 
@@ -25,6 +26,9 @@ import com.bergerkiller.bukkit.common.wrappers.BlockData;
  * Links multiple (Virtual) Signs together to create a single, long, horizontal line of text which can be altered
  */
 public class LinkedSign {
+    //TODO: Make this cleaner
+    private static final MaterialBooleanProperty IS_WALL_SIGN = new MaterialTypeProperty(MaterialUtil.getMaterial("LEGACY_WALL_SIGN"));
+
     public OfflineBlock location;
     public final int line;
     private final ToggledState updateSignOrder = new ToggledState();
@@ -205,7 +209,7 @@ public class LinkedSign {
         // Check if there is another wall sign attached to the same block as the current one
         // MC 1.13 note: both legacy and new are called WALL_SIGN, so in this instance, it will work!
         BlockData fromBlockData = WorldUtil.getBlockData(from);
-        if (fromBlockData.isType(Material.WALL_SIGN)) {
+        if (IS_WALL_SIGN.get(fromBlockData)) {
             BlockFace attachedSide = BlockUtil.getAttachedFace(from);
             Block attachedBlock = from.getRelative(attachedSide);
             BlockFace cornerDir;
@@ -217,7 +221,7 @@ public class LinkedSign {
             next = attachedBlock.getRelative(cornerDir);
             nextBlockData = getBlockDataIfLoaded(next, from_chunkX, from_chunkZ);
 
-            if (nextBlockData.isType(Material.WALL_SIGN) && nextBlockData.getAttachedFace() == cornerDir.getOppositeFace() && loopCheck.add(next)) {
+            if (IS_WALL_SIGN.get(nextBlockData) && nextBlockData.getAttachedFace() == cornerDir.getOppositeFace() && loopCheck.add(next)) {
                 return next;
             }
         }
