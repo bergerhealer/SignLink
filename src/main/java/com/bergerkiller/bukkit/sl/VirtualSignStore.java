@@ -5,6 +5,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.function.Consumer;
 
+import com.bergerkiller.bukkit.common.utils.WorldUtil;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Block;
@@ -202,7 +203,7 @@ public class VirtualSignStore {
 
             for (OfflineBlock block : blocks) {
                 Block signBlock = block.getLoadedBlock();
-                if (signBlock != null) {
+                if (signBlock != null && WorldUtil.isLoaded(signBlock)) {
                     if (!VirtualSign.exists(signBlock)) {
                         VirtualSign.add(signBlock);
                     }
