@@ -1,5 +1,6 @@
 package com.bergerkiller.bukkit.sl;
 
+import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import org.bukkit.ChatColor;
 
 import com.bergerkiller.bukkit.common.utils.StringUtil;
@@ -111,4 +112,59 @@ public class StyledCharacter {
         return new StyledCharacter('\uFFFF', color, formats);
     }
 
+    /**
+     * Concatenates all the characters in the specified iterable and produces a legacy
+     * chat formatted String.
+     *
+     * @param characters Styled characters that make up the full text
+     * @return Formatted String
+     */
+    public static String stringify(Iterable<StyledCharacter> characters) {
+        StyledColor currentColor = StyledColor.NONE;
+        ChatColor[] currentFormats = StyledCharacter.NO_FORMATS;
+        StringBuilder result = new StringBuilder();
+        boolean isFormatReset;
+        for (StyledCharacter sc : characters) {
+            // Handle format changes
+            isFormatReset = false;
+            if (sc.formats != currentFormats) {
+                for (ChatColor oldFormat : currentFormats) {
+                    if (!LogicUtil.contains(oldFormat, sc.formats)) {
+                        isFormatReset = true;
+                        break;
+                    }
+                }
+                if (isFormatReset) {
+                    // Format reset. Reset and then add all the new formats.
+                    result.append(StringUtil.CHAT_STYLE_CHAR).append(ChatColor.RESET.getChar());
+                    sc.appendFormats(result);
+                    currentColor = StyledColor.NONE; // current color resets too
+                } else {
+                    // Check for formats that have been added
+                    for (ChatColor newFormat : sc.formats) {
+                        if (!LogicUtil.contains(newFormat, currentFormats)) {
+                            result.append(StringUtil.CHAT_STYLE_CHAR).append(newFormat.getChar());
+                        }
+                    }
+                }
+                currentFormats = sc.formats;
+            }
+            // Handle color changes
+            if (!currentColor.sameFormat(sc.color)) {
+                currentColor = sc.color;
+                if (currentColor != StyledColor.NONE) {
+                    result.append(currentColor.format());
+                } else if (!isFormatReset) {
+                    // Reset and re-apply all formatting rules (presumably none, as otherwise there'd be a reset)
+                    result.append(currentColor.format());
+                    sc.appendFormats(result);
+                }
+            }
+            // Append the actual character of interest
+            if (!sc.isStyleOnly()) {
+                result.append(sc.character);
+            }
+        }
+        return result.toString();
+    }
 }

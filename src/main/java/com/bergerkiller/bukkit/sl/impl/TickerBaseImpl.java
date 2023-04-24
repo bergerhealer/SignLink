@@ -89,7 +89,8 @@ public abstract class TickerBaseImpl extends Ticker {
     boolean updateText(TickerText text) {
         // Check ticker is used at all
         if (this.mode == TickMode.NONE) {
-            return false;
+            String orig = text.get();
+            return !orig.equals(text.none());
         }
 
         // Check tick update interval has elapsed
