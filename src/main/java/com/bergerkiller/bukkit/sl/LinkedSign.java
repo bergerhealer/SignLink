@@ -7,6 +7,7 @@ import java.util.HashSet;
 
 import com.bergerkiller.bukkit.common.MaterialBooleanProperty;
 import com.bergerkiller.bukkit.common.MaterialTypeProperty;
+import com.bergerkiller.bukkit.common.block.SignSide;
 import org.bukkit.Chunk;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -35,29 +36,33 @@ public class LinkedSign {
     public final SignDirection direction;
     private String oldtext;
     private final ArrayList<VirtualSign> displaySigns = new ArrayList<VirtualSign>();
-    private final LinkedText linkedText = new LinkedText(); // Handles text formatting
-    private static HashSet<Block> loopCheck = new HashSet<Block>(); // Used to prevent server freeze when finding signs
+    private final LinkedText linkedText; // Handles text formatting
+    private static final HashSet<Block> loopCheck = new HashSet<Block>(); // Used to prevent server freeze when finding signs
 
-    public LinkedSign(Block from, int line) {
-        this(OfflineBlock.of(from), line, findDirection(from, line));
+    public LinkedSign(Block from, SignSide side, int line) {
+        this(OfflineBlock.of(from), side, line, findDirection(from, side, line));
     }
 
-    public LinkedSign(OfflineWorld world, int x, int y, int z, int lineAt, SignDirection direction) {
-        this(world.getBlockAt(x, y, z), lineAt, direction);
+    public LinkedSign(OfflineWorld world, int x, int y, int z, SignSide side, int lineAt, SignDirection direction) {
+        this(world.getBlockAt(x, y, z), side, lineAt, direction);
     }
 
-    public LinkedSign(OfflineBlock location, int lineAt, SignDirection direction) {
+    public LinkedSign(OfflineBlock location, SignSide side, int lineAt, SignDirection direction) {
         this.location = location;
         this.line = lineAt;
         this.direction = direction;
+        this.linkedText = new LinkedText(side, line);
         this.linkedText.setDirection(direction);
-        this.linkedText.setLine(line);
     }
 
-    private static SignDirection findDirection(Block from, int line) {
+    public SignSide getSide() {
+        return this.linkedText.getSide();
+    }
+
+    private static SignDirection findDirection(Block from, SignSide side, int line) {
         VirtualSign sign = VirtualSign.getOrCreate(from);
         if (sign != null) {
-            String text = sign.getRealLine(line);
+            String text = sign.getRealLine(side, line);
             int peri = text.indexOf("%");
             if (peri != -1 && text.lastIndexOf("%") == peri) {
                 //get direction from text
@@ -188,7 +193,7 @@ public class LinkedSign {
 
     private Block nextSign(Block from) {
         // Check if there is a sign to the left/right of the current one (direction)
-        BlockFace from_facing = BlockUtil.getFacing(from);
+        BlockFace from_facing = getSide().getFacing(from);
         BlockFace direction = FaceUtil.rotate(from_facing, 2);
         if (this.direction == SignDirection.RIGHT) {
             direction = direction.getOppositeFace();
@@ -202,7 +207,7 @@ public class LinkedSign {
         Block next = from.getRelative(direction);
         BlockData nextBlockData = getBlockDataIfLoaded(next, from_chunkX, from_chunkZ);
 
-        if (MaterialUtil.ISSIGN.get(nextBlockData) && nextBlockData.getFacingDirection() == from_facing && loopCheck.add(next)) {
+        if (MaterialUtil.ISSIGN.get(nextBlockData) && getSide().getFacing(nextBlockData) == from_facing && loopCheck.add(next)) {
             return next;
         }
 
@@ -242,7 +247,7 @@ public class LinkedSign {
         //Unloaded chunk?
         if (start == null) {
             for (VirtualSign sign : this.displaySigns) {
-                sign.restoreRealLine(this.line);
+                sign.restoreRealLine(this.getSide(), this.line);
                 sign.setMidLinkSign(false);
             }
             this.displaySigns.clear();
@@ -269,7 +274,7 @@ public class LinkedSign {
             loopCheck.add(start);
             while ((start = nextSign(start)) != null) {
                 VirtualSign sign = VirtualSign.getOrCreate(start);
-                String realline = sign.getRealLine(this.line);
+                String realline = sign.getRealLine(getSide(), this.line);
                 boolean isEndSign = false;
                 if (realline.equals("%")) {
                     // End delimiter (sign is included)
@@ -317,7 +322,7 @@ public class LinkedSign {
             }
         }
         for (VirtualSign sign : signsRemoved) {
-            sign.restoreRealLine(this.line);
+            sign.restoreRealLine(this.getSide(), this.line);
         }
         return this.displaySigns;
     }

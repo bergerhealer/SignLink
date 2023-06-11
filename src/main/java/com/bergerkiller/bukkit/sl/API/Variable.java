@@ -3,7 +3,10 @@ package com.bergerkiller.bukkit.sl.API;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.function.Predicate;
 
+import com.bergerkiller.bukkit.common.block.SignSide;
+import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
@@ -150,12 +153,12 @@ public abstract class Variable implements VariableValue {
         return this.name;
     }
 
-    public boolean addLocation(OfflineWorld world, int x, int y, int z, int lineAt, SignDirection direction) {
-        return addLocation(new LinkedSign(world, x, y, z, lineAt, direction));
+    public boolean addLocation(OfflineWorld world, int x, int y, int z, SignSide side, int lineAt, SignDirection direction) {
+        return addLocation(new LinkedSign(world, x, y, z, side, lineAt, direction));
     }
 
-    public boolean addLocation(Block signblock, int lineAt) {
-        return addLocation(new LinkedSign(signblock, lineAt));
+    public boolean addLocation(Block signblock, SignSide side, int lineAt) {
+        return addLocation(new LinkedSign(signblock, side, lineAt));
     }
 
     public boolean addLocation(LinkedSign sign) {
@@ -165,7 +168,7 @@ public abstract class Variable implements VariableValue {
                 return false;
             }
             if (ls.location.equals(sign.location)) {
-                if (ls.line == sign.line) {
+                if (ls.line == sign.line && ls.getSide() == sign.getSide()) {
                     this.removeLocation(ls);
                     break;
                 }
@@ -189,16 +192,36 @@ public abstract class Variable implements VariableValue {
      */
     protected abstract void updateSign(LinkedSign sign);
 
-    public boolean removeLocation(Block signblock, int lineAt) {
-        return removeLocation(OfflineBlock.of(signblock), lineAt);
+    public boolean removeLocation(Block signblock, SignSide side, int lineAt) {
+        return removeLocation(OfflineBlock.of(signblock), side, lineAt);
     }
 
-    public boolean removeLocation(OfflineBlock signblock, int lineAt) {
+    public boolean removeLocation(OfflineBlock signblock, final SignSide side, final int lineAt) {
+        return removeLocation(signblock, sign -> sign.getSide() == side && sign.line == lineAt);
+    }
+
+    public boolean removeLocation(Block signblock) {
+        return this.removeLocation(signblock, LogicUtil.alwaysTruePredicate());
+    }
+
+    public boolean removeLocation(OfflineBlock signblock) {
+        return this.removeLocation(signblock, LogicUtil.alwaysTruePredicate());
+    }
+
+    public boolean removeLocation(LinkedSign sign) {
+        return this.removeLocation(sign, true);
+    }
+
+    private boolean removeLocation(Block signblock, Predicate<LinkedSign> which) {
+        return removeLocation(OfflineBlock.of(signblock), which);
+    }
+
+    private boolean removeLocation(OfflineBlock signblock, Predicate<LinkedSign> which) {
         boolean rem = false;
         Iterator<LinkedSign> iter = this.boundTo.iterator();
         while (iter.hasNext()) {
             LinkedSign sign = iter.next();
-            if (sign.location.equals(signblock) && (sign.line == lineAt || lineAt == -1)) {
+            if (sign.location.equals(signblock) && which.test(sign)) {
                 if (removeLocation(sign, false)) {
                     iter.remove();
                     rem = true;
@@ -208,18 +231,6 @@ public abstract class Variable implements VariableValue {
         return rem;
     }
 
-    public boolean removeLocation(Block signblock) {
-        return this.removeLocation(signblock, -1);
-    }
-
-    public boolean removeLocation(OfflineBlock signblock) {
-        return this.removeLocation(signblock, -1);
-    }
-
-    public boolean removeLocation(LinkedSign sign) {
-        return this.removeLocation(sign, true);
-    }
-
     private boolean removeLocation(LinkedSign sign, boolean removeBoundTo) {
         SignRemoveEvent event = new SignRemoveEvent(this, sign);
         Bukkit.getServer().getPluginManager().callEvent(event);
@@ -227,7 +238,7 @@ public abstract class Variable implements VariableValue {
             ArrayList<VirtualSign> signs = sign.getSigns(false);
             if (signs != null) {
                 for (VirtualSign vsign : signs) {
-                    vsign.restoreRealLine(sign.line);
+                    vsign.restoreRealLine(sign.getSide(), sign.line);
                 }
             }
             return true;

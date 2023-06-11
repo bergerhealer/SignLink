@@ -5,6 +5,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.function.Consumer;
 
+import com.bergerkiller.bukkit.common.block.SignSide;
 import com.bergerkiller.bukkit.common.utils.WorldUtil;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -29,7 +30,7 @@ import com.bergerkiller.bukkit.sl.util.ConcurrentMapList;
  */
 public class VirtualSignStore {
     private static ConcurrentMapList<OfflineBlock, VirtualSign> virtualSigns;
-    private static HashSet<OfflineBlock> changedSignBlocks = new HashSet<OfflineBlock>();
+    private static final HashSet<OfflineBlock> changedSignBlocks = new HashSet<OfflineBlock>();
 
     public static void deinit() {
         virtualSigns.clear();
@@ -40,11 +41,11 @@ public class VirtualSignStore {
         virtualSigns = new ConcurrentMapList<>();
     }
 
-    public static synchronized VirtualSign add(Block block, String[] lines) {
+    public static synchronized VirtualSign add(Block block, String[] frontLines, String[] backLines) {
         if (virtualSigns == null) {
             return null;
         }
-        VirtualSign vsign = new VirtualSign(block, lines);
+        VirtualSign vsign = new VirtualSign(block, frontLines, backLines);
         virtualSigns.put(OfflineBlock.of(vsign.getBlock()), vsign);
         return vsign;
     }
@@ -263,10 +264,17 @@ public class VirtualSignStore {
      * Schedules a refresh of the sign order and variable display for a sign block
      * 
      * @param signBlock to update
+     * @param side Side of the sign that changed
+     * @param lines New lines of this side
      */
-    public static synchronized void updateSign(Block signBlock, String[] lines) {
+    public static synchronized void updateSign(Block signBlock, SignSide side, String[] lines) {
         if (!exists(signBlock)) {
-            add(signBlock, lines);
+            Sign sign = BlockUtil.getSign(signBlock);
+            if (sign != null) {
+                String[] otherSideLines = side.opposite().getLines(sign);
+                add(signBlock, side.selectFront(lines, otherSideLines),
+                               side.selectBack(lines, otherSideLines));
+            }
         }
         changedSignBlocks.add(OfflineBlock.of(signBlock));
     }

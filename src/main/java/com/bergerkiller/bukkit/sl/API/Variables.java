@@ -2,6 +2,7 @@ package com.bergerkiller.bukkit.sl.API;
 
 import java.util.List;
 
+import com.bergerkiller.bukkit.common.block.SignSide;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Block;
@@ -117,15 +118,21 @@ public class Variables {
         return VariableMap.INSTANCE.getIfExists(name);
     }
 
+    @Deprecated
+    public static Variable get(VirtualSign sign, int line) {
+        return get(sign, SignSide.FRONT, line);
+    }
+
     /**
      * Gets the variable displayed on a line on a sign
      * 
      * @param sign on which the variable can be found
+     * @param side of the sign where the variable can be found
      * @param line on which the variable can be found
      * @return The Variable, or null if there is none
      */
-    public static Variable get(VirtualSign sign, int line) {
-        return VariableMap.INSTANCE.get(parseVariableName(sign.getRealLine(line)));
+    public static Variable get(VirtualSign sign, SignSide side, int line) {
+        return VariableMap.INSTANCE.get(parseVariableName(sign.getRealLine(side, line)));
     }
 
     /**

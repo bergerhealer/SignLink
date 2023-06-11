@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 
+import com.bergerkiller.bukkit.common.block.SignSide;
+import com.bergerkiller.generated.org.bukkit.block.SignHandle;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.block.BlockState;
@@ -73,18 +75,19 @@ public class SLListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onSignChangeMonitor(SignChangeEvent event) {
         // Detect variables on the sign and add lines that have them
+        SignSide side = SignSide.sideChanged(event);
         for (int i = 0; i < VirtualLines.LINE_COUNT; i++) {
             String varname = Variables.parseVariableName(event.getLine(i));
             if (varname != null) {
                 Variable var = Variables.get(varname);
-                if (!var.addLocation(event.getBlock(), i)) {
+                if (!var.addLocation(event.getBlock(), side, i)) {
                     event.getPlayer().sendMessage(ChatColor.RED + "Failed to create a sign linking to variable '" + varname + "'!");
                 }
             }
         }
 
         // Update sign order and other information the next tick (after this sign is placed)
-        VirtualSign.updateSign(event.getBlock(), event.getLines());
+        VirtualSign.updateSign(event.getBlock(), SignSide.sideChanged(event), event.getLines());
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -135,15 +138,10 @@ public class SLListener implements Listener {
                     // Update the sign
                     VirtualSign vsign = VirtualSign.createSign(sign);
                     if (vsign != null) {
-                        // Detect variables on the sign and add lines that have them
-                        for (int i = 0; i < VirtualLines.LINE_COUNT; i++) {
-                            String varname = Variables.parseVariableName(sign.getLine(i));
-                            if (varname != null) {
-                                Variable var = Variables.get(varname);
-                                if (!var.addLocation(sign.getBlock(), i)) {
-                                    SignLink.plugin.log(Level.WARNING, "Failed to create a sign linking to variable '" + varname + "'!");
-                                }
-                            }
+                        SignHandle signHandle = SignHandle.createHandle(sign);
+                        detectSignVariables(vsign, sign, signHandle, SignSide.FRONT);
+                        if (SignSide.BACK.isSupported()) {
+                            detectSignVariables(vsign, sign, signHandle, SignSide.BACK);
                         }
                     }
 
@@ -162,6 +160,18 @@ public class SLListener implements Listener {
         } finally {
             variableBuffer.clear();
             linkedSignBuffer.clear();
+        }
+    }
+
+    private void detectSignVariables(VirtualSign vsign, Sign sign, SignHandle signHandle, SignSide side) {
+        for (int i = 0; i < VirtualLines.LINE_COUNT; i++) {
+            String varname = Variables.parseVariableName(side.getLine(signHandle, i));
+            if (varname != null) {
+                Variable var = Variables.get(varname);
+                if (!var.addLocation(sign.getBlock(), side, i)) {
+                    SignLink.plugin.log(Level.WARNING, "Failed to create a sign linking to variable '" + varname + "'!");
+                }
+            }
         }
     }
 

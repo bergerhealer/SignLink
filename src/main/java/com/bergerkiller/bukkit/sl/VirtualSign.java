@@ -4,6 +4,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 
+import com.bergerkiller.bukkit.common.internal.CommonCapabilities;
+import com.bergerkiller.generated.org.bukkit.block.SignHandle;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Block;
@@ -12,6 +14,8 @@ import org.bukkit.entity.Player;
 
 import com.bergerkiller.bukkit.common.BlockLocation;
 import com.bergerkiller.bukkit.common.block.SignChangeTracker;
+import com.bergerkiller.bukkit.common.block.SignSide;
+import com.bergerkiller.bukkit.common.block.SignSideMap;
 import com.bergerkiller.bukkit.common.offline.OfflineBlock;
 import com.bergerkiller.bukkit.common.protocol.CommonPacket;
 import com.bergerkiller.bukkit.common.utils.BlockUtil;
@@ -30,10 +34,10 @@ public class VirtualSign extends VirtualSignStore {
     private final BlockLocation blockLocation;
     private final OfflineBlock location;
     private SignChangeTracker sign;
-    private final String[] oldlines;
+    private final SignSideMap<String[]> oldLines = new SignSideMap<>();
     private final HashMap<String, VirtualLines> playerlines = new HashMap<String, VirtualLines>();
     private final VirtualLines defaultlines;
-    private HashSet<VirtualLines> outofrange = new HashSet<VirtualLines>();
+    private final HashSet<VirtualLines> outofrange = new HashSet<VirtualLines>();
     private int signcheckcounter;
     private boolean hasBeenVerified;
     private boolean hasVariablesOnSign;
@@ -42,34 +46,48 @@ public class VirtualSign extends VirtualSignStore {
     private static final int SIGN_CHECK_INTERVAL = 100;
     private static final int SIGN_CHECK_INTERVAL_NOVAR = 400;
 
-    protected VirtualSign(Block signLocation, String[] lines) {
-        if (lines == null) {
-            throw new IllegalArgumentException("Input lines are null");
+    protected VirtualSign(Block signLocation, String[] frontLines, String[] backLines) {
+        if (frontLines == null) {
+            throw new IllegalArgumentException("Input front lines are null");
         }
-        if (lines.length < VirtualLines.LINE_COUNT) {
-            throw new IllegalArgumentException("Input line count invalid: " + lines.length);
+        if (frontLines.length < VirtualLines.LINE_COUNT) {
+            throw new IllegalArgumentException("Input front line count invalid: " + frontLines.length);
+        }
+        if (backLines == null) {
+            throw new IllegalArgumentException("Input back lines are null");
+        }
+        if (backLines.length < VirtualLines.LINE_COUNT) {
+            throw new IllegalArgumentException("Input back line count invalid: " + backLines.length);
         }
         this.location = OfflineBlock.of(signLocation);
         this.blockLocation = new BlockLocation(signLocation);
         this.sign = null;
-        this.oldlines = lines.clone();
-        this.defaultlines = new VirtualLines(this.oldlines);
+        this.oldLines.setFront(frontLines.clone());
+        this.oldLines.setBack((CommonCapabilities.HAS_SIGN_BACK_TEXT ? backLines.clone() : VirtualLines.DEFAULT_EMPTY_SIGN_LINES));
+        this.defaultlines = new VirtualLines(this.oldLines.front(), this.oldLines.back());
         this._isMidLinkSign = false;
         this.initCheckCounter();
         this.scheduleVerify();
     }
 
     protected VirtualSign(Sign sign) {
-        String[] lines = sign.getLines();
-        if (lines == null) {
-            lines = new String[] {"", "", "", ""};
+        if (CommonCapabilities.HAS_SIGN_BACK_TEXT) {
+            SignHandle handle = SignHandle.createHandle(sign);
+            this.oldLines.setFront(handle.getFrontLines().clone());
+            this.oldLines.setBack(handle.getBackLines().clone());
+        } else {
+            String[] frontLines = sign.getLines();
+            if (frontLines == null) {
+                frontLines = VirtualLines.DEFAULT_EMPTY_SIGN_LINES;
+            }
+            this.oldLines.setFront(frontLines.clone());
+            this.oldLines.setBack(VirtualLines.DEFAULT_EMPTY_SIGN_LINES);
         }
 
         this.sign = SignChangeTracker.track(sign);
         this.location = OfflineBlock.of(this.sign.getBlock());
         this.blockLocation = new BlockLocation(this.sign.getBlock());
-        this.oldlines = lines.clone();
-        this.defaultlines = new VirtualLines(this.oldlines);
+        this.defaultlines = new VirtualLines(this.oldLines.front(), this.oldLines.back());
         this._isMidLinkSign = false;
         this.initCheckCounter();
         this.scheduleVerify();
@@ -126,7 +144,7 @@ public class VirtualSign extends VirtualSignStore {
         }
         VirtualLines lines = playerlines.get(playerName);
         if (lines == null) {
-            lines = new VirtualLines(defaultlines.get());
+            lines = new VirtualLines(defaultlines.get(SignSide.FRONT), defaultlines.get(SignSide.BACK));
             lines.setChanged(true);
             playerlines.put(playerName, lines);
         }
@@ -150,25 +168,51 @@ public class VirtualSign extends VirtualSignStore {
         return this.defaultlines;
     }
 
+    @Deprecated
     public void setDefaultLine(int index, String value) {
-        getLines().set(index, value);
+        setDefaultLine(SignSide.FRONT, index, value);
+    }
+
+    @Deprecated
+    public void setLine(int index, String value, VariableTextPlayerFilter forPlayerFilter) {
+        setLine(SignSide.FRONT, index, value, forPlayerFilter);
+    }
+
+    @Deprecated
+    public void restoreRealLine(int line) {
+        restoreRealLine(SignSide.FRONT, line);
+    }
+
+    @Deprecated
+    public String getLine(int index) {
+        return getLine(SignSide.FRONT, index);
+    }
+
+    @Deprecated
+    public String getLine(int index, String player) {
+        return getLine(SignSide.FRONT, index, player);
+    }
+
+    public void setDefaultLine(SignSide side, int index, String value) {
+        getLines().set(side, index, value);
     }
 
     /**
      * Sets a single line of text on this virtual sign
      *
+     * @param side Side of the sign
      * @param index Line index (0 - 3)
      * @param value Value to store on the line
      * @param forPlayerFilter Filters what players should be updated
      */
-    public synchronized void setLine(int index, String value, VariableTextPlayerFilter forPlayerFilter) {
+    public synchronized void setLine(SignSide side, int index, String value, VariableTextPlayerFilter forPlayerFilter) {
 //        System.out.println("Set line "+index+" to "+value+" for "+(players==null?null:players.length));
         if (forPlayerFilter.isAll()) {
             //Set all lines to this value at this index
             for (VirtualLines lines : playerlines.values()) {
-                lines.set(index, value);
+                lines.set(side, index, value);
             }
-            getLines().set(index, value);
+            getLines().set(side, index, value);
         } else if (forPlayerFilter.isExcluding()) {
             // All except some player names
 
@@ -183,68 +227,85 @@ public class VirtualSign extends VirtualSignStore {
                 String name = entry.getKey();
                 if (!forPlayerFilter.containsPlayerName(name)) {
                     VirtualLines lines = entry.getValue();
-                    lines.set(index, value);
+                    lines.set(side, index, value);
                     this.sendLines(lines, SignLink.plugin.getPlayerByLowercase(name));
                 }
             }
 
             // Update default value
-            getLines().set(index, value);
+            getLines().set(side, index, value);
         } else {
             // Only for some player names, do not update default
             for (String player : forPlayerFilter.getPlayerNames()) {
                 VirtualLines lines = getLines(player);
-                lines.set(index, value);
+                lines.set(side, index, value);
                 this.sendLines(lines, SignLink.plugin.getPlayerByLowercase(player));
             }
         }
     }
 
-    public void restoreRealLine(int line) {
-        setLine(line, getRealLine(line), VariableTextPlayerFilter.all());
+    public void restoreRealLine(SignSide side, int line) {
+        setLine(side, line, getRealLine(side, line), VariableTextPlayerFilter.all());
     }
 
     /**
      * Gets a single line of this virtual sign as it is displayed
      * to players that do not have a personalized text displayed
      *
+     * @param side Side of the sign
      * @param index Line index (0-3)
      * @return Line displayed by default
      */
-    public String getLine(int index) {
-        return this.defaultlines.get(index);
+    public String getLine(SignSide side, int index) {
+        return this.defaultlines.get(side, index);
     }
 
     /**
      * Gets a single line of this virtual sign as it is displayed
      * to a player
      *
+     * @param side Side of the sign
      * @param index Line index (0-3)
      * @param player Name of the player to get it for, all-lowercase
      * @return Line for this player
      */
-    public synchronized String getLine(int index, String player) {
-        return this.playerlines.getOrDefault(player, this.defaultlines).get(index);
+    public synchronized String getLine(SignSide side, int index, String player) {
+        return this.playerlines.getOrDefault(player, this.defaultlines).get(side, index);
     }
 
+    @Deprecated
     public String[] getRealLines() {
-        if (this.sign == null) {
-            return this.oldlines;
-        } else {
-            return this.sign.getSign().getLines();
-        }
+        return getRealLines(SignSide.FRONT);
     }
 
+    @Deprecated
     public String getRealLine(int index) {
+        return getRealLine(SignSide.FRONT, index);
+    }
+
+    @Deprecated
+    public void setRealLine(int index, String line) {
+        setRealLine(SignSide.FRONT, index, line);
+    }
+
+    public String[] getRealLines(SignSide side) {
         if (this.sign == null) {
-            return this.oldlines[index];
+            return this.oldLines.side(side);
         } else {
-            return this.sign.getSign().getLine(index);
+            return this.sign.getLines(side);
         }
     }
 
-    public void setRealLine(int index, String line) {
-        this.sign.getSign().setLine(index, line);
+    public String getRealLine(SignSide side, int index) {
+        if (this.sign == null) {
+            return this.oldLines.side(side)[index];
+        } else {
+            return this.sign.getLine(side, index);
+        }
+    }
+
+    public void setRealLine(SignSide side, int index, String line) {
+        this.sign.setLine(side, index, line);
     }
 
     /**
@@ -371,28 +432,36 @@ public class VirtualSign extends VirtualSignStore {
     }
 
     private void detectLineChanges() {
-        Sign signAtBlock = this.sign.getSign();
+        if (detectLineChangesOfSide(SignSide.FRONT) || detectLineChangesOfSide(SignSide.BACK)) {
+            this.hasVariablesOnSign = this.hasVariablesRefresh();
+        }
+    }
+
+    private boolean detectLineChangesOfSide(SignSide side) {
+        if (!side.isSupported()) {
+            return false;
+        }
+
         boolean changed = false;
+        String[] oldLines = this.oldLines.side(side);
         for (int i = 0; i < 4; i++) {
-            String currentLine = signAtBlock.getLine(i);
-            if (!this.oldlines[i].equals(currentLine)) {
+            String currentLine = sign.getLine(side, i);
+            if (!oldLines[i].equals(currentLine)) {
                 Block signblock = this.getBlock();
-                String varname = Variables.parseVariableName(this.oldlines[i]);
+                String varname = Variables.parseVariableName(oldLines[i]);
                 if (varname != null) {
-                    Variables.get(varname).removeLocation(signblock, i);
+                    Variables.get(varname).removeLocation(signblock, side, i);
                 }
-                this.oldlines[i] = currentLine;
-                this.setLine(i, this.oldlines[i], VariableTextPlayerFilter.all());
-                varname = Variables.parseVariableName(this.oldlines[i]);
+                oldLines[i] = currentLine;
+                this.setLine(side, i, oldLines[i], VariableTextPlayerFilter.all());
+                varname = Variables.parseVariableName(oldLines[i]);
                 if (varname != null) {
-                    Variables.get(varname).addLocation(signblock, i);
+                    Variables.get(varname).addLocation(signblock, side, i);
                 }
                 changed = true;
             }
         }
-        if (changed) {
-            this.hasVariablesOnSign = this.hasVariablesRefresh();
-        }
+        return changed;
     }
 
     /**
@@ -441,11 +510,19 @@ public class VirtualSign extends VirtualSignStore {
         if (this._isMidLinkSign) {
             return true;
         }
-        for (String line : this.getRealLines()) {
+        for (String line : this.getRealLines(SignSide.FRONT)) {
             if (line.indexOf('%') != -1) {
                 return true;
             }
         }
+        if (SignSide.BACK.isSupported()) {
+            for (String line : this.getRealLines(SignSide.BACK)) {
+                if (line.indexOf('%') != -1) {
+                    return true;
+                }
+            }
+        }
+
         return false;
     }
 

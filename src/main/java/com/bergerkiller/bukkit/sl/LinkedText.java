@@ -1,5 +1,7 @@
 package com.bergerkiller.bukkit.sl;
 
+import com.bergerkiller.bukkit.common.block.SignSide;
+
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
@@ -9,19 +11,29 @@ import java.util.List;
  * Object used to build the text displayed on multiple linked signs
  */
 public class LinkedText {
-    private int line = 0;
     private int signCount = 0;
     private List<VirtualSign> signs = Collections.emptyList();
     private SignDirection direction = SignDirection.NONE;
+    private final SignSide side;
+    private final int line;
     private boolean wrapAround = false;
     private boolean isCentred = false;
     private int[] remainingWidths = new int[0];
     private StyledString[] parts = new StyledString[0];
-    private StyledString tmpString = new StyledString();
+    private final StyledString tmpString = new StyledString();
 
     private final StyledString prefixChars = new StyledString();
     private final StyledString postfixChars = new StyledString();
     private final StyledString characters = new StyledString();
+
+    public LinkedText(SignSide side, int line) {
+        this.side = side;
+        this.line = line;
+    }
+
+    public SignSide getSide() {
+        return side;
+    }
 
     public void setSigns(List<VirtualSign> signs) {
         this.signs = signs;
@@ -37,10 +49,6 @@ public class LinkedText {
 
     public void setDirection(SignDirection direction) {
         this.direction = direction;
-    }
-
-    public void setLine(int line) {
-        this.line = line;
     }
 
     public void setWrapAround(boolean wrapAround) {
@@ -197,7 +205,7 @@ public class LinkedText {
         // Handle text before/after the variable value on the first sign
         String prefix = "";
         String postfix = "";
-        String firstSignRealLine = signs.get(firstSignIndex).getRealLine(this.line);
+        String firstSignRealLine = signs.get(firstSignIndex).getRealLine(side, this.line);
         int index1 = firstSignRealLine.indexOf('%');
         int index2 = firstSignRealLine.lastIndexOf('%');
         if ((index2 - index1) == 1) {
@@ -227,7 +235,7 @@ public class LinkedText {
 
         // Handle multi-sign display so that text on the last sign is appended correctly
         if (this.signCount > 1) {
-            String lastSignRealLine = signs.get(lastSignIndex).getRealLine(this.line);
+            String lastSignRealLine = signs.get(lastSignIndex).getRealLine(this.side, this.line);
             index1 = lastSignRealLine.indexOf('%');
             index2 = lastSignRealLine.lastIndexOf('%');
             if ((index2 - index1) == 1) {
@@ -296,7 +304,7 @@ public class LinkedText {
      */
     public void apply(VariableTextPlayerFilter forPlayerFilter) {
         for (int i = 0; i < this.parts.length; i++) {
-            this.signs.get(i).setLine(this.line, this.parts[i].toString(), forPlayerFilter);
+            this.signs.get(i).setLine(this.side, this.line, this.parts[i].toString(), forPlayerFilter);
         }
     }
 }
