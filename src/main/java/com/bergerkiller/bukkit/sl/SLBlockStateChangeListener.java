@@ -29,7 +29,7 @@ class SLBlockStateChangeListener implements PacketBlockStateChangeListener {
     @Override
     public boolean onBlockChange(final Player player, BlockStateChange change) {
         // Only interested in changes done to signs
-        if (change.getType() != BlockStateType.SIGN) {
+        if (change.getType() != BlockStateType.SIGN && change.getType() != BlockStateType.HANGING_SIGN) {
             return true;
         }
 
