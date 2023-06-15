@@ -26,7 +26,6 @@ import com.bergerkiller.bukkit.common.Common;
 import com.bergerkiller.bukkit.common.MessageBuilder;
 import com.bergerkiller.bukkit.common.PluginBase;
 import com.bergerkiller.bukkit.common.Task;
-import com.bergerkiller.bukkit.common.metrics.MyDependingPluginsGraph;
 import com.bergerkiller.bukkit.common.protocol.PacketBlockStateChangeListener;
 import com.bergerkiller.bukkit.common.utils.ParseUtil;
 import com.bergerkiller.bukkit.common.utils.StringUtil;
@@ -197,11 +196,6 @@ public class SignLink extends PluginBase {
 
         // Load all signs in all worlds already loaded right now
         this.loadSigns();
-
-        // Metrics
-        if (this.hasMetrics()) {
-            this.getMetrics().addGraph(new MyDependingPluginsGraph());
-        }
     }
 
     @Override
