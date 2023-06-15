@@ -8,6 +8,10 @@ softdepend: [BKCommonLib, PlaceholderAPI]
 api-version: 1.13
 metrics: true
 
+bstats:
+    enabled: true
+    plugin-id: 18762
+
 main: com.bergerkiller.bukkit.sl.Preloader
 preloader:
     main: com.bergerkiller.bukkit.sl.SignLink
