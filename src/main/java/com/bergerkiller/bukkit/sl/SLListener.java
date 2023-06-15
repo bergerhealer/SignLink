@@ -8,6 +8,8 @@ import java.util.Map;
 import java.util.logging.Level;
 
 import com.bergerkiller.bukkit.common.block.SignSide;
+import com.bergerkiller.bukkit.common.internal.CommonCapabilities;
+import com.bergerkiller.bukkit.common.utils.MaterialUtil;
 import com.bergerkiller.generated.org.bukkit.block.SignHandle;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -17,8 +19,10 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.SignChangeEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
@@ -127,6 +131,32 @@ public class SLListener implements Listener {
             message.append("variables: ").yellow(StringUtil.join(" ", varnames));
         }
         message.send(event.getPlayer());
+    }
+
+    @EventHandler(priority=EventPriority.MONITOR, ignoreCancelled=true)
+    public void onSignClick(PlayerInteractEvent event) {
+        // Only used >= 1.20 where sign editing is possible
+        if (!CommonCapabilities.HAS_SIGN_BACK_TEXT) {
+            return;
+        }
+
+        // Must be right-clicking a sign
+        if (event.getClickedBlock() == null
+                || event.getAction() != Action.RIGHT_CLICK_BLOCK
+                || !MaterialUtil.ISSIGN.get(event.getClickedBlock())
+        ) {
+            return;
+        }
+
+        // Must be a sign tracked here and it must have variables declared
+        VirtualSign vsign = VirtualSignStore.get(event.getClickedBlock());
+        if (vsign == null || !vsign.hasVariables()) {
+            return;
+        }
+
+        // Send the original lines to this player, and after a single tick delay, restore
+        vsign.sendRealLines(event.getPlayer());
+        CommonUtil.nextTick(() -> vsign.sendCurrentLines(event.getPlayer()));
     }
 
     public void loadSigns(Collection<BlockState> blockStates) {

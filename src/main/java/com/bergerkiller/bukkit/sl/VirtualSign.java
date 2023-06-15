@@ -3,8 +3,10 @@ package com.bergerkiller.bukkit.sl;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.function.Predicate;
 
 import com.bergerkiller.bukkit.common.internal.CommonCapabilities;
+import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.bergerkiller.generated.org.bukkit.block.SignHandle;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -433,7 +435,13 @@ public class VirtualSign extends VirtualSignStore {
 
     private void detectLineChanges() {
         if (detectLineChangesOfSide(SignSide.FRONT) || detectLineChangesOfSide(SignSide.BACK)) {
+            boolean hadVariables = this.hasVariablesOnSign;
             this.hasVariablesOnSign = this.hasVariablesRefresh();
+
+            // It's possible variables were added and/or removed. Make sure to update the sign.
+            if (hadVariables || this.hasVariablesOnSign || this._isMidLinkSign) {
+                resendLines(LogicUtil.alwaysTruePredicate());
+            }
         }
     }
 
@@ -595,22 +603,26 @@ public class VirtualSign extends VirtualSignStore {
         // Send updated sign text to nearby players
         //FIX: Only do this for signs with variables on them!
         if (this.hasVariablesOnSign || this._isMidLinkSign) {
-            for (Player player : WorldUtil.getPlayers(getWorld())) {
-                VirtualLines lines = getLines(player);
-                if (isInRange(player)) {
-                    if (outofrange.remove(lines) || lines.hasChanged()) {
-                        this.sendLines(lines, player);
-                    }
-                } else {
-                    outofrange.add(lines);
-                }
-            }
+            resendLines(VirtualLines::hasChanged);
+        }
+    }
 
-            // All signs updated - they are no longer 'dirty'
-            this.defaultlines.setChanged(false);
-            for (VirtualLines lines : playerlines.values()) {
-                lines.setChanged(false);
+    private void resendLines(Predicate<VirtualLines> changedCheck) {
+        for (Player player : WorldUtil.getPlayers(getWorld())) {
+            VirtualLines lines = getLines(player);
+            if (isInRange(player)) {
+                if (outofrange.remove(lines) || changedCheck.test(lines)) {
+                    this.sendLines(lines, player);
+                }
+            } else {
+                outofrange.add(lines);
             }
+        }
+
+        // All signs updated - they are no longer 'dirty'
+        this.defaultlines.setChanged(false);
+        for (VirtualLines lines : playerlines.values()) {
+            lines.setChanged(false);
         }
     }
 
@@ -623,6 +635,15 @@ public class VirtualSign extends VirtualSignStore {
             CommonPacket updatePacket = BlockUtil.getUpdatePacket(sign.getSign());
             if (updatePacket != null) {
                 SLBlockStateChangeListener.applyDirect(this, player, updatePacket);
+                PacketUtil.sendPacket(player, updatePacket, false); // Send and skip listeners
+            }
+        }
+    }
+
+    public void sendRealLines(Player player) {
+        if (player != null && sign != null) {
+            CommonPacket updatePacket = BlockUtil.getUpdatePacket(sign.getSign());
+            if (updatePacket != null) {
                 PacketUtil.sendPacket(player, updatePacket, false); // Send and skip listeners
             }
         }
