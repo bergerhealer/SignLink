@@ -118,7 +118,7 @@ public class VariableValueMap {
         this.defaultEntry.ticker = new DefaultTicker(this.defaultEntry);
         this.setSharedTicker();
 
-        // Resets the variables to the variable name
+        // Resets the variables to the variable name (also marks it changed)
         this.setAll(FormattedVariableValue.createDefaultValue(this.getVariableName()));
     }
 
@@ -193,21 +193,30 @@ public class VariableValueMap {
         } else {
             this.numTickedPlayerEntries--;
         }
+
+        // Mark changed
+        variable.markVariableChanged();
     }
 
     /**
      * Updates the text based on any configured tickers
      */
     public void updateTickers() {
+        boolean hasChanges = false;
         if (this.defaultEntry.ticker.updateText(this.defaultEntry.text)) {
             this.defaultEntry.computePlayerText(false);
+            hasChanges = true;
         }
         if (this.numTickedPlayerEntries > 0) {
             for (Entry e : this.byPlayer.values()) {
                 if (e.ticker.updateText(e.text)) {
                     e.computePlayerText(false);
+                    hasChanges = true;
                 }
             }
+        }
+        if (hasChanges) {
+            variable.markVariableChanged();
         }
     }
 
@@ -276,6 +285,9 @@ public class VariableValueMap {
         if (changed && e.value == newValue) {
             e.computePlayerText(true);
         }
+
+        // Mark changed (new by player entry)
+        variable.markVariableChanged();
 
         // Anyone that declares this same variable but has registered the default
         // entry, must also create an entry for this same player. This operation is
@@ -440,6 +452,9 @@ public class VariableValueMap {
 
             // Recalculate text
             this.computePlayerText(true);
+
+            // Mark changed
+            variable.markVariableChanged();
         }
 
         /**
@@ -450,6 +465,9 @@ public class VariableValueMap {
         public TickerBaseImpl getPlayerTicker() {
             if (this.ticker instanceof DefaultTicker) {
                 this.ticker = new SinglePlayerTicker(this.ticker, this);
+
+                // Mark changed
+                variable.markVariableChanged();
 
                 // Track the number of player entries that uses tickers
                 if (this.ticker.isTicking()) {

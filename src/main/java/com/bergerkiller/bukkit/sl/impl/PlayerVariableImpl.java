@@ -56,7 +56,7 @@ public class PlayerVariableImpl extends PlayerVariable {
                     (SinglePlayerTicker) this.entry.ticker, this.entry);
         }
 
-        // Update value and text instantly
+        // Update value and text instantly (also marks variable changed)
         this.entry.setValue(defaultValue);
     }
 

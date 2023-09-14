@@ -31,6 +31,8 @@ import com.bergerkiller.bukkit.sl.API.VariableChangeType;
 public class VariableImpl extends Variable {
     private final VariableMap map;
     private final VariableValueMap values;
+    /** Caches the change state to avoid unneeded hashmap operations */
+    VariableMap.ChangeState storedChangeState = VariableMap.ChangeState.UNCHANGED;
 
     VariableImpl(VariableMap map, String name) {
         super(name);
@@ -46,6 +48,10 @@ public class VariableImpl extends Variable {
      */
     public VariableMap getVariableMap() {
         return this.map;
+    }
+
+    protected void markVariableChanged() {
+        map.onVariableChanged(this);
     }
 
     /**

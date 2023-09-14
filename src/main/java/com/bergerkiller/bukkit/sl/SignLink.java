@@ -31,7 +31,6 @@ import com.bergerkiller.bukkit.common.utils.ParseUtil;
 import com.bergerkiller.bukkit.common.utils.StringUtil;
 import com.bergerkiller.bukkit.common.utils.WorldUtil;
 import com.bergerkiller.bukkit.sl.API.GroupVariable;
-import com.bergerkiller.bukkit.sl.API.PlayerVariable;
 import com.bergerkiller.bukkit.sl.API.Ticker;
 import com.bergerkiller.bukkit.sl.API.Variable;
 import com.bergerkiller.bukkit.sl.API.VariableValue;
@@ -51,6 +50,7 @@ public class SignLink extends PluginBase {
     private Task updatetask;
     private Task updateordertask;
     private Task timetask;
+    private Task autoSaveTask;
     public PlaceholderAPIHandler papi = null;
     private boolean papi_enabled = false;
     private boolean papi_show_on_signs = false;
@@ -196,10 +196,14 @@ public class SignLink extends PluginBase {
 
         // Load all signs in all worlds already loaded right now
         this.loadSigns();
+
+        // Start auto-saving every 30s
+        autoSaveTask = new AutoSaveTask(this).start(600, 600);
     }
 
     @Override
     public void disable() {
+        Task.stop(autoSaveTask);
         Task.stop(timetask);
         Task.stop(updatetask);
         Task.stop(updateordertask);
@@ -241,46 +245,11 @@ public class SignLink extends PluginBase {
     }
 
     public void loadValues() {
-        FileConfiguration values = new FileConfiguration(this, "values.yml");
-        if (!values.exists()) {            
-            values.set("test.ticker", "LEFT");
-            values.set("test.tickerInterval", 3);
-            values.set("test.value", "This is a test message being ticked from right to left. ");
-            values.set("sign.ticker", "NONE");
-            values.set("sign.value", "This is a regular message you can set and is updated only once.");
-            values.save();
-        }
-        values.load();
-        for (ConfigurationNode node : values.getNodes()) {
-            Variable var = Variables.get(node.getName());
-            var.setDefault(node.get("value", Variable.createDefaultValue(var.getName())));
-            var.getDefaultTicker().load(node);
-            for (ConfigurationNode forplayer : node.getNode("forPlayers").getNodes()) {
-                String value = forplayer.get("value", String.class, null);
-                PlayerVariable pvar = var.forPlayer(forplayer.getName());
-                if (value != null) {
-                    pvar.set(value);
-                }
-                pvar.getTicker().load(forplayer);
-            }
-        }
+        VariableMap.INSTANCE.load(this);
     }
 
     public void saveValues() {
-        FileConfiguration values = new FileConfiguration(this, "values.yml");
-        for (Variable var : Variables.getAll()) {
-            ConfigurationNode node = values.getNode(var.getName());
-            node.set("value", var.getDefault());
-            var.getDefaultTicker().save(node);
-            for (PlayerVariable pvar : var.forAll()) {
-                ConfigurationNode forplayer = node.getNode("forPlayers").getNode(pvar.getPlayer());
-                forplayer.set("value", pvar.get());
-                if (!pvar.isTickerShared()) {
-                    pvar.getTicker().save(forplayer);
-                }
-            }
-        }
-        values.save();
+        VariableMap.INSTANCE.save(false);
     }
 
     @Override
@@ -374,7 +343,7 @@ public class SignLink extends PluginBase {
             Permission.RELOAD.handle(sender);
             loadValues();
             loadSigns();
-            sender.sendMessage(ChatColor.GREEN + "SignLink reloaded the Variable values");
+            sender.sendMessage(ChatColor.GREEN + "SignLink reloaded the Variable values from disk");
             return true;
         }
         // Remaining variable commands
@@ -441,6 +410,14 @@ public class SignLink extends PluginBase {
                     sender.sendMessage(ChatColor.GREEN + Integer.toString(allVars.size()) + " variables have been deleted!");
                 }
             }
+            return true;
+        }
+
+        // Save all Variables to values.yml
+        if (cmdLabel.equalsIgnoreCase("saveall")) {
+            Permission.SAVEALL.handle(sender);
+            saveValues();
+            sender.sendMessage(ChatColor.GREEN + "SignLink saved all of the Variable values to disk");
             return true;
         }
 
@@ -698,6 +675,18 @@ public class SignLink extends PluginBase {
                     plugin.papi.refreshVariableForAll(Variables.get(varName));
                 }
             }
+        }
+    }
+
+    private static class AutoSaveTask extends Task {
+
+        public AutoSaveTask(JavaPlugin plugin) {
+            super(plugin);
+        }
+
+        @Override
+        public void run() {
+            VariableMap.INSTANCE.save(true);
         }
     }
 }

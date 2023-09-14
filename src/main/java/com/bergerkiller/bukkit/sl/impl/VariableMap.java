@@ -10,7 +10,6 @@ import org.bukkit.block.Block;
 
 import com.bergerkiller.bukkit.common.collections.ImplicitlySharedSet;
 import com.bergerkiller.bukkit.sl.LinkedSign;
-import com.bergerkiller.bukkit.sl.SignLink;
 import com.bergerkiller.bukkit.sl.API.Variable;
 
 /**
@@ -22,21 +21,7 @@ public class VariableMap {
      * For tests, please create a new VariableMap
      * each time, instead.
      */
-    public static final VariableMap INSTANCE = new VariableMap() {
-        @Override
-        protected void onVariableRemoved(Variable variable) {
-            // Clean up from the editing metadata
-            SignLink.plugin.removeEditing(variable);
-        }
-
-        @Override
-        protected void onVariableCreated(Variable variable) {
-            // If PAPI is enabled, initialize the variable values
-            if (SignLink.plugin.papi != null) {
-                SignLink.plugin.papi.refreshVariableForAll(variable);
-            }
-        }
-    };
+    public static final VariableMapImpl INSTANCE = new VariableMapImpl();
 
     private final HashMap<String, VariableImpl> variablesMap = new HashMap<String, VariableImpl>();
     private final ImplicitlySharedSet<VariableImpl> variablesSet = new ImplicitlySharedSet<VariableImpl>();
@@ -55,6 +40,16 @@ public class VariableMap {
      * @param variable Variable that was created
      */
     protected void onVariableCreated(Variable variable) {
+    }
+
+    /**
+     * Callback called when an existing variable is changed. This includes changing
+     * the value, ticker state, or player-specific variable value changes.
+     * Can be called often so should do very little actual logic.
+     *
+     * @param variable Variable that changed
+     */
+    protected void onVariableChanged(Variable variable) {
     }
 
     public synchronized void deinit() {
@@ -214,5 +209,25 @@ public class VariableMap {
      */
     public boolean find(List<LinkedSign> signs, List<VariableImpl> variables, Location at) {
         return find(signs, variables, at.getBlock());
+    }
+
+    enum ChangeState {
+        UNCHANGED,
+        CREATED,
+        CHANGED,
+        REMOVED;
+
+        static {
+            UNCHANGED.change = CHANGED;
+            CREATED.change = CREATED;
+            CHANGED.change = CHANGED;
+            REMOVED.change = CREATED;
+        }
+
+        private ChangeState change;
+
+        public ChangeState change() {
+            return change;
+        }
     }
 }
