@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.TimeZone;
 import java.util.logging.Level;
 
+import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.World;
@@ -287,6 +288,21 @@ public class SignLink extends PluginBase {
                 vars.remove();
             }
         }
+    }
+
+    private void setPapiAutoUpdate(Variable variable, boolean enabled) {
+        if (papi_auto_variables.contains(variable.getName()) == enabled) {
+            return;
+        }
+
+        papi_auto_variables = new ArrayList<>(papi_auto_variables);
+        LogicUtil.addOrRemove(papi_auto_variables, variable.getName(), enabled);
+
+        // Update config.yml too
+        FileConfiguration config = new FileConfiguration(this);
+        config.load();
+        config.set("PlaceholderAPI.autoUpdateVariables", papi_auto_variables);
+        config.save();
     }
 
     @Override
@@ -600,11 +616,22 @@ public class SignLink extends PluginBase {
             } else {
                 sender.sendMessage(ChatColor.RED + "Please specify the ticker direction!");
             }
+        } else if (cmdLabel.equalsIgnoreCase("papiautoupdate")) {
+            boolean enabled = (args.length == 0 || ParseUtil.parseBool(args[0]));
+            setPapiAutoUpdate(var.variable, enabled);
+            if (enabled) {
+                sender.sendMessage(ChatColor.GREEN + "Variable '" + ChatColor.YELLOW + var.variable.getName() +
+                        ChatColor.GREEN + "' is now automatically updated using PlaceholderAPI!");
+                sender.sendMessage(ChatColor.GREEN + "To turn this off, use " + ChatColor.YELLOW + "/var papiautoupdate false");
+            } else {
+                sender.sendMessage(ChatColor.YELLOW + "Variable '" + ChatColor.WHITE + var.variable.getName() +
+                        ChatColor.YELLOW + " is no longer automatically updated using PlaceholderAPI");
+            }
         } else {
             sender.sendMessage(ChatColor.RED + "Unknown sub-command: " + ChatColor.YELLOW + cmdLabel);
             sender.sendMessage(ChatColor.YELLOW + "Use /help variable for command help");
         }
-         return true;
+        return true;
     }
 
     private static class TimeUpdateTask extends Task {
