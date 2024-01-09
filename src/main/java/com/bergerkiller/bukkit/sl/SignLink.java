@@ -500,10 +500,23 @@ public class SignLink extends PluginBase {
                 sender.sendMessage(ChatColor.GREEN + "You are now editing this variable for the selected players!");
             }
         } else if (cmdLabel.equalsIgnoreCase("get")) {
+            String value;
             if (var.global()) {
-                sender.sendMessage(ChatColor.YELLOW + "Current value is: " + ChatColor.BLACK + var.variable.getDefault());
+                value = var.variable.getDefault();
             } else {
-                sender.sendMessage(ChatColor.YELLOW + "Current value is: " + ChatColor.BLACK + var.variable.get(var.players[0]));
+                value = var.variable.get(var.players[0]);
+            }
+            sender.sendMessage(ChatColor.YELLOW + "Current value is: " + ChatColor.BLACK + value);
+
+            // If value includes other variables, also show the final output
+            if (value.contains("%")) {
+                String text;
+                if (var.global()) {
+                    text = var.variable.getDefaultTicker().current();
+                } else {
+                    text = var.variable.forPlayer(var.players[0]).getTicker().current();
+                }
+                sender.sendMessage(ChatColor.YELLOW + "Current text is: " + ChatColor.BLACK + text);
             }
         } else if (cmdLabel.equalsIgnoreCase("setdefault") || cmdLabel.equalsIgnoreCase("setdef")) {
             String value = StringUtil.ampToColor(StringUtil.join(" ", args));
