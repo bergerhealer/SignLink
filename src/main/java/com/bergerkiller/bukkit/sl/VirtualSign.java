@@ -1,12 +1,18 @@
 package com.bergerkiller.bukkit.sl;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 
+import com.bergerkiller.bukkit.common.Common;
 import com.bergerkiller.bukkit.common.internal.CommonCapabilities;
+import com.bergerkiller.bukkit.common.utils.ChunkUtil;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
+import com.bergerkiller.generated.net.minecraft.server.level.PlayerChunkHandle;
+import com.bergerkiller.generated.net.minecraft.server.level.WorldServerHandle;
 import com.bergerkiller.generated.org.bukkit.block.SignHandle;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -25,7 +31,6 @@ import com.bergerkiller.bukkit.common.utils.EntityUtil;
 import com.bergerkiller.bukkit.common.utils.MaterialUtil;
 import com.bergerkiller.bukkit.common.utils.PacketUtil;
 import com.bergerkiller.bukkit.common.utils.PlayerUtil;
-import com.bergerkiller.bukkit.common.utils.WorldUtil;
 import com.bergerkiller.bukkit.sl.API.Variables;
 
 /**
@@ -39,7 +44,7 @@ public class VirtualSign extends VirtualSignStore {
     private final SignSideMap<String[]> oldLines = new SignSideMap<>();
     private final HashMap<String, VirtualLines> playerlines = new HashMap<String, VirtualLines>();
     private final VirtualLines defaultlines;
-    private final HashSet<VirtualLines> outofrange = new HashSet<VirtualLines>();
+    private final Map<VirtualLines, Object> lastPlayersInRange = new HashMap<VirtualLines, Object>();
     private int signcheckcounter;
     private boolean hasBeenVerified;
     private boolean hasVariablesOnSign;
@@ -490,6 +495,35 @@ public class VirtualSign extends VirtualSignStore {
         return true;
     }
 
+    // This is a wrap around bkcl api added in 1.20.4-v3
+    private static final ChunkViewersGetter CHUNK_VIEWERS_GETTER = findChunkViewersGetter();
+    private static ChunkViewersGetter findChunkViewersGetter() {
+        if (Common.hasCapability("Common:ChunkUtil:getChunkViewers")) {
+            return ChunkUtil::getChunkViewers;
+        } else {
+            return (world, chunkX, chunkZ) -> {
+                PlayerChunkHandle pc = WorldServerHandle.fromBukkit(world).getPlayerChunkMap().getVisibleChunk(chunkX, chunkZ);
+                if (pc == null || pc.getChunkIfLoaded() == null) {
+                    return Collections.emptyList();
+                } else {
+                    return pc.getPlayers();
+                }
+            };
+        }
+    }
+    interface ChunkViewersGetter {
+        Collection<Player> get(World world, int chunkX, int chunkZ);
+    }
+
+    public void forPlayersInRange(Consumer<Player> action) {
+        // Filter result of getChunkViewers()
+        for (Player viewer : CHUNK_VIEWERS_GETTER.get(getWorld(), getChunkX(), getChunkZ())) {
+            if (EntityUtil.isNearBlock(viewer, this.getX(), this.getZ(), 60)) {
+                action.accept(viewer);
+            }
+        }
+    }
+
     public boolean isInRange(Player player) {
         if (!PlayerUtil.isChunkVisible(player, this.getChunkX(), this.getChunkZ())) {
             return false;
@@ -608,16 +642,16 @@ public class VirtualSign extends VirtualSignStore {
     }
 
     private void resendLines(Predicate<VirtualLines> changedCheck) {
-        for (Player player : WorldUtil.getPlayers(getWorld())) {
+        // Iterate all players in range of the sign, and mark them with a unique token
+        // Then remove all values from lastPlayersInRange that remain unset
+        final Object token = new Object();
+        forPlayersInRange(player -> {
             VirtualLines lines = getLines(player);
-            if (isInRange(player)) {
-                if (outofrange.remove(lines) || changedCheck.test(lines)) {
-                    this.sendLines(lines, player);
-                }
-            } else {
-                outofrange.add(lines);
+            if (lastPlayersInRange.put(lines, token) == null || changedCheck.test(lines)) {
+                this.sendLines(lines, player);
             }
-        }
+        });
+        lastPlayersInRange.values().removeIf(t -> t != token);
 
         // All signs updated - they are no longer 'dirty'
         this.defaultlines.setChanged(false);
