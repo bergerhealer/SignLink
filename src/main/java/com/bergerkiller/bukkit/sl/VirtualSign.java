@@ -1,8 +1,10 @@
 package com.bergerkiller.bukkit.sl;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -41,7 +43,8 @@ public class VirtualSign extends VirtualSignStore {
     private final OfflineBlock location;
     private SignChangeTracker sign;
     private final SignSideMap<VirtualLines.SignSideLines> oldLines = new SignSideMap<>();
-    private final HashMap<String, VirtualLines> playerlines = new HashMap<String, VirtualLines>();
+    private final Map<String, VirtualLines> playerlinesMap = new HashMap<>();
+    private final List<VirtualLines> playerlinesValues = new ArrayList<>();
     private final VirtualLines defaultlines;
     private final Map<VirtualLines, Object> lastPlayersInRange = new HashMap<VirtualLines, Object>();
     private int signcheckcounter;
@@ -101,7 +104,8 @@ public class VirtualSign extends VirtualSignStore {
     }
 
     public synchronized void resetLines() {
-        this.playerlines.clear();
+        this.playerlinesMap.clear();
+        this.playerlinesValues.clear();
     }
 
     public void resetLines(Player player) {
@@ -109,7 +113,10 @@ public class VirtualSign extends VirtualSignStore {
     }
 
     public synchronized void resetLines(String playerName) {
-        this.playerlines.remove(playerName);
+        VirtualLines lines = this.playerlinesMap.remove(playerName);
+        if (lines != null) {
+            this.playerlinesValues.remove(lines);
+        }
     }
 
     public void invalidate(Player player) {
@@ -131,11 +138,12 @@ public class VirtualSign extends VirtualSignStore {
         if (playerName == null) {
             return getLines();
         }
-        VirtualLines lines = playerlines.get(playerName);
+        VirtualLines lines = playerlinesMap.get(playerName);
         if (lines == null) {
             lines = new VirtualLines(defaultlines);
             lines.setChanged(true);
-            playerlines.put(playerName, lines);
+            playerlinesMap.put(playerName, lines);
+            playerlinesValues.add(lines);
         }
         return lines;
     }
@@ -198,9 +206,7 @@ public class VirtualSign extends VirtualSignStore {
 //        System.out.println("Set line "+index+" to "+value+" for "+(players==null?null:players.length));
         if (forPlayerFilter.isAll()) {
             //Set all lines to this value at this index
-            for (VirtualLines lines : playerlines.values()) {
-                lines.set(side, index, value);
-            }
+            playerlinesValues.forEach(lines -> lines.set(side, index, value));
             getLines().set(side, index, value);
         } else if (forPlayerFilter.isExcluding()) {
             // All except some player names
@@ -212,7 +218,7 @@ public class VirtualSign extends VirtualSignStore {
             }
 
             // Update all player lines that are missing from the filter
-            for (Map.Entry<String, VirtualLines> entry : playerlines.entrySet()) {
+            for (Map.Entry<String, VirtualLines> entry : playerlinesMap.entrySet()) {
                 String name = entry.getKey();
                 if (!forPlayerFilter.containsPlayerName(name)) {
                     VirtualLines lines = entry.getValue();
@@ -259,7 +265,7 @@ public class VirtualSign extends VirtualSignStore {
      * @return Line for this player
      */
     public synchronized String getLine(SignSide side, int index, String player) {
-        return this.playerlines.getOrDefault(player, this.defaultlines).get(side, index);
+        return this.playerlinesMap.getOrDefault(player, this.defaultlines).get(side, index);
     }
 
     @Deprecated
@@ -637,9 +643,7 @@ public class VirtualSign extends VirtualSignStore {
 
         // All signs updated - they are no longer 'dirty'
         this.defaultlines.setChanged(false);
-        for (VirtualLines lines : playerlines.values()) {
-            lines.setChanged(false);
-        }
+        this.playerlinesValues.forEach(lines -> lines.setChanged(false));
     }
 
     public void sendCurrentLines(Player player) {
