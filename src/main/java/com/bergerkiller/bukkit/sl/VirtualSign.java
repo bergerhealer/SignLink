@@ -13,7 +13,6 @@ import com.bergerkiller.bukkit.common.utils.ChunkUtil;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.bergerkiller.generated.net.minecraft.server.level.PlayerChunkHandle;
 import com.bergerkiller.generated.net.minecraft.server.level.WorldServerHandle;
-import com.bergerkiller.generated.org.bukkit.block.SignHandle;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Block;
@@ -41,7 +40,7 @@ public class VirtualSign extends VirtualSignStore {
     private final BlockLocation blockLocation;
     private final OfflineBlock location;
     private SignChangeTracker sign;
-    private final SignSideMap<String[]> oldLines = new SignSideMap<>();
+    private final SignSideMap<VirtualLines.SignSideLines> oldLines = new SignSideMap<>();
     private final HashMap<String, VirtualLines> playerlines = new HashMap<String, VirtualLines>();
     private final VirtualLines defaultlines;
     private final Map<VirtualLines, Object> lastPlayersInRange = new HashMap<VirtualLines, Object>();
@@ -53,24 +52,18 @@ public class VirtualSign extends VirtualSignStore {
     private static final int SIGN_CHECK_INTERVAL = 100;
     private static final int SIGN_CHECK_INTERVAL_NOVAR = 400;
 
-    protected VirtualSign(Block signLocation, String[] frontLines, String[] backLines) {
+    protected VirtualSign(Block signLocation, VirtualLines.SignSideLines frontLines, VirtualLines.SignSideLines backLines) {
         if (frontLines == null) {
             throw new IllegalArgumentException("Input front lines are null");
-        }
-        if (frontLines.length < VirtualLines.LINE_COUNT) {
-            throw new IllegalArgumentException("Input front line count invalid: " + frontLines.length);
         }
         if (backLines == null) {
             throw new IllegalArgumentException("Input back lines are null");
         }
-        if (backLines.length < VirtualLines.LINE_COUNT) {
-            throw new IllegalArgumentException("Input back line count invalid: " + backLines.length);
-        }
         this.location = OfflineBlock.of(signLocation);
         this.blockLocation = new BlockLocation(signLocation);
         this.sign = null;
-        this.oldLines.setFront(frontLines.clone());
-        this.oldLines.setBack((CommonCapabilities.HAS_SIGN_BACK_TEXT ? backLines.clone() : VirtualLines.DEFAULT_EMPTY_SIGN_LINES));
+        this.oldLines.setFront(frontLines);
+        this.oldLines.setBack((CommonCapabilities.HAS_SIGN_BACK_TEXT ? backLines : VirtualLines.SignSideLines.UNSUPPORTED));
         this.defaultlines = new VirtualLines(this.oldLines.front(), this.oldLines.back());
         this._isMidLinkSign = false;
         this.initCheckCounter();
@@ -78,23 +71,12 @@ public class VirtualSign extends VirtualSignStore {
     }
 
     protected VirtualSign(Sign sign) {
-        if (CommonCapabilities.HAS_SIGN_BACK_TEXT) {
-            SignHandle handle = SignHandle.createHandle(sign);
-            this.oldLines.setFront(handle.getFrontLines().clone());
-            this.oldLines.setBack(handle.getBackLines().clone());
-        } else {
-            String[] frontLines = sign.getLines();
-            if (frontLines == null) {
-                frontLines = VirtualLines.DEFAULT_EMPTY_SIGN_LINES;
-            }
-            this.oldLines.setFront(frontLines.clone());
-            this.oldLines.setBack(VirtualLines.DEFAULT_EMPTY_SIGN_LINES);
-        }
-
         this.sign = SignChangeTracker.track(sign);
+        this.oldLines.setFront(VirtualLines.SignSideLines.getFrontLines(this.sign));
+        this.oldLines.setBack(VirtualLines.SignSideLines.getBackLines(this.sign));
         this.location = OfflineBlock.of(this.sign.getBlock());
         this.blockLocation = new BlockLocation(this.sign.getBlock());
-        this.defaultlines = new VirtualLines(this.oldLines.front(), this.oldLines.back());
+        this.defaultlines = new VirtualLines(this.oldLines.front().clone(), this.oldLines.back().clone());
         this._isMidLinkSign = false;
         this.initCheckCounter();
         this.scheduleVerify();
@@ -151,7 +133,7 @@ public class VirtualSign extends VirtualSignStore {
         }
         VirtualLines lines = playerlines.get(playerName);
         if (lines == null) {
-            lines = new VirtualLines(defaultlines.get(SignSide.FRONT), defaultlines.get(SignSide.BACK));
+            lines = new VirtualLines(defaultlines);
             lines.setChanged(true);
             playerlines.put(playerName, lines);
         }
@@ -297,7 +279,7 @@ public class VirtualSign extends VirtualSignStore {
 
     public String[] getRealLines(SignSide side) {
         if (this.sign == null) {
-            return this.oldLines.side(side);
+            return this.oldLines.side(side).getAllText();
         } else {
             return this.sign.getLines(side);
         }
@@ -305,7 +287,7 @@ public class VirtualSign extends VirtualSignStore {
 
     public String getRealLine(SignSide side, int index) {
         if (this.sign == null) {
-            return this.oldLines.side(side)[index];
+            return this.oldLines.side(side).getText(index);
         } else {
             return this.sign.getLine(side, index);
         }
@@ -456,7 +438,7 @@ public class VirtualSign extends VirtualSignStore {
         }
 
         boolean changed = false;
-        String[] oldLines = this.oldLines.side(side);
+        String[] oldLines = this.oldLines.side(side).getAllText();
         for (int i = 0; i < 4; i++) {
             String currentLine = sign.getLine(side, i);
             if (!oldLines[i].equals(currentLine)) {

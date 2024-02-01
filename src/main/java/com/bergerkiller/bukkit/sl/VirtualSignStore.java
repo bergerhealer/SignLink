@@ -5,6 +5,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.function.Consumer;
 
+import com.bergerkiller.bukkit.common.block.SignChangeTracker;
 import com.bergerkiller.bukkit.common.block.SignSide;
 import com.bergerkiller.bukkit.common.utils.WorldUtil;
 import org.bukkit.Location;
@@ -41,7 +42,7 @@ public class VirtualSignStore {
         virtualSigns = new ConcurrentMapList<>();
     }
 
-    public static synchronized VirtualSign add(Block block, String[] frontLines, String[] backLines) {
+    public static synchronized VirtualSign add(Block block, VirtualLines.SignSideLines frontLines, VirtualLines.SignSideLines backLines) {
         if (virtualSigns == null) {
             return null;
         }
@@ -265,13 +266,14 @@ public class VirtualSignStore {
      * 
      * @param signBlock to update
      * @param side Side of the sign that changed
-     * @param lines New lines of this side
+     * @param textLines New lines of this side
      */
-    public static synchronized void updateSign(Block signBlock, SignSide side, String[] lines) {
+    public static synchronized void updateSign(Block signBlock, SignSide side, String[] textLines) {
         if (!exists(signBlock)) {
-            Sign sign = BlockUtil.getSign(signBlock);
-            if (sign != null) {
-                String[] otherSideLines = side.opposite().getLines(sign);
+            SignChangeTracker tracker = SignChangeTracker.track(signBlock);
+            if (!tracker.isRemoved()) {
+                VirtualLines.SignSideLines lines = new VirtualLines.SignSideLines(textLines);
+                VirtualLines.SignSideLines otherSideLines = VirtualLines.SignSideLines.getLines(tracker, side.opposite());
                 add(signBlock, side.selectFront(lines, otherSideLines),
                                side.selectBack(lines, otherSideLines));
             }
