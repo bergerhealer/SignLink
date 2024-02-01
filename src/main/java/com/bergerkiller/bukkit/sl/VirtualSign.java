@@ -444,23 +444,35 @@ public class VirtualSign extends VirtualSignStore {
         }
 
         boolean changed = false;
-        String[] oldLines = this.oldLines.side(side).getAllText();
+        VirtualLines.SignSideLines oldLines = this.oldLines.side(side);
+        VirtualLines.SignSideLines newLines = VirtualLines.SignSideLines.getLines(this.sign, side);
         for (int i = 0; i < 4; i++) {
-            String currentLine = sign.getLine(side, i);
-            if (!oldLines[i].equals(currentLine)) {
-                Block signblock = this.getBlock();
-                String varname = Variables.parseVariableName(oldLines[i]);
-                if (varname != null) {
-                    Variables.get(varname).removeLocation(signblock, side, i);
-                }
-                oldLines[i] = currentLine;
-                this.setLine(side, i, oldLines[i], VariableTextPlayerFilter.all());
-                varname = Variables.parseVariableName(oldLines[i]);
-                if (varname != null) {
-                    Variables.get(varname).addLocation(signblock, side, i);
-                }
-                changed = true;
+            final VirtualLines.Line oldLine = oldLines.getLine(i);
+            final VirtualLines.Line newLine = newLines.getLine(i);
+            if (oldLine.toJson().equals(newLine.toJson())) {
+                continue; // Unchanged
             }
+
+            // If previous line contained variables, remove those first
+            String varname = Variables.parseVariableName(oldLine.text);
+            if (varname != null) {
+                Variables.get(varname).removeLocation(this.getBlock(), side, i);
+            }
+
+            // Update all lines for all viewers to this new line with sameAsSign = true
+            final int lineIdx = i;
+            oldLines.setLine(lineIdx, newLine);
+            playerlinesValues.forEach(lines -> lines.set(side, lineIdx, newLine));
+            getLines().set(side, lineIdx, newLine);
+
+            // See if the new text contains a variable
+            varname = Variables.parseVariableName(newLine.text);
+            if (varname != null) {
+                Variables.get(varname).addLocation(this.getBlock(), side, i);
+            }
+
+            // Made changes
+            changed = true;
         }
         return changed;
     }

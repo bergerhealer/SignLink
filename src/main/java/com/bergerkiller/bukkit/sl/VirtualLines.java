@@ -103,6 +103,12 @@ public class VirtualLines {
         }
     }
 
+    public void set(SignSide side, int index, Line line) {
+        if (this.lines.side(side).setLine(index, line)) {
+            this.changed = true;
+        }
+    }
+
     public String get(SignSide side, int index) {
         return lines.side(side).getText(index);
     }
@@ -181,7 +187,7 @@ public class VirtualLines {
                 new Line[] { Line.UNSET, Line.UNSET, Line.UNSET, Line.UNSET }
         ) {
             @Override
-            public void setLine(int index, Line line) {
+            public boolean setLine(int index, Line line) {
                 throw new UnsupportedOperationException("Read-only lines constant");
             }
 
@@ -232,9 +238,22 @@ public class VirtualLines {
             return lines[index];
         }
 
-        public void setLine(int index, Line line) {
+        public boolean setLine(int index, Line line) {
+            Line prevLine = this.lines[index];
+            boolean changed = !prevLine.toJson().equals(line.toJson());
             this.lines[index] = line;
             this.textLines[index] = line.text;
+
+            if (!line.sameAsSign) {
+                this.sameAsSign = false;
+            } else if (!prevLine.sameAsSign) {
+                this.sameAsSign = true;
+                for (Line existingLine : this.lines) {
+                    sameAsSign &= existingLine.sameAsSign;
+                }
+            }
+
+            return changed;
         }
 
         public String getText(int index) {
