@@ -13,6 +13,7 @@ import com.bergerkiller.bukkit.common.Common;
 import com.bergerkiller.bukkit.common.internal.CommonCapabilities;
 import com.bergerkiller.bukkit.common.utils.ChunkUtil;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
+import com.bergerkiller.bukkit.sl.API.events.SignVariablesDetectEvent;
 import com.bergerkiller.generated.net.minecraft.server.level.PlayerChunkHandle;
 import com.bergerkiller.generated.net.minecraft.server.level.WorldServerHandle;
 import org.bukkit.Location;
@@ -552,20 +553,41 @@ public class VirtualSign extends VirtualSignStore {
         if (this._isMidLinkSign) {
             return true;
         }
-        for (String line : this.getRealLines(SignSide.FRONT)) {
-            if (line.indexOf('%') != -1) {
-                return true;
+        {
+            String[] lines = this.getRealLines(SignSide.FRONT);
+            for (String line : lines) {
+                if (line.indexOf('%') != -1) {
+                    if (checkCanDetectVariables(SignSide.FRONT, lines)) {
+                        return true;
+                    } else {
+                        break;
+                    }
+                }
             }
         }
         if (SignSide.BACK.isSupported()) {
-            for (String line : this.getRealLines(SignSide.BACK)) {
+            String[] lines = this.getRealLines(SignSide.BACK);
+            for (String line : lines) {
                 if (line.indexOf('%') != -1) {
-                    return true;
+                    if (checkCanDetectVariables(SignSide.BACK, lines)) {
+                        return true;
+                    } else {
+                        break;
+                    }
                 }
             }
         }
 
         return false;
+    }
+
+    private boolean checkCanDetectVariables(SignSide side, String[] realLines) {
+        Block block = this.getBlock();
+        if (block == null) {
+            return false;
+        }
+
+        return SignVariablesDetectEvent.checkCanDetect(block, side, realLines);
     }
 
     /**
@@ -619,7 +641,7 @@ public class VirtualSign extends VirtualSignStore {
             // Only do this for signs that have variables on them. Otherwise check less often.
             // When disabled, don't do a refresh of the sign at all when no variables are displayed.
             this.signcheckcounter++;
-            if (this.signcheckcounter == SIGN_CHECK_INTERVAL && this.hasVariablesRefresh()) {
+            if (this.signcheckcounter == SIGN_CHECK_INTERVAL && this.hasVariables()) {
                 this.signcheckcounter = 0;
                 if (!this.verifySign()) {
                     return;

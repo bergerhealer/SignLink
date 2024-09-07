@@ -7,9 +7,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 
+import com.bergerkiller.bukkit.common.ToggledState;
 import com.bergerkiller.bukkit.common.block.SignSide;
 import com.bergerkiller.bukkit.common.internal.CommonCapabilities;
 import com.bergerkiller.bukkit.common.utils.MaterialUtil;
+import com.bergerkiller.bukkit.sl.API.events.SignVariablesDetectEvent;
 import com.bergerkiller.generated.org.bukkit.block.SignHandle;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -76,8 +78,15 @@ public class SLListener implements Listener {
         }
     }
 
+    private final List<SignChangeEvent> suppressedSignChangeEvents = new ArrayList<>();
+
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onSignChangeMonitor(SignChangeEvent event) {
+        // If previously suppressed, don't detect variables on it for real
+        if (suppressedSignChangeEvents.remove(event)) {
+            return;
+        }
+
         // Detect variables on the sign and add lines that have them
         SignSide side = SignSide.sideChanged(event);
         for (int i = 0; i < VirtualLines.LINE_COUNT; i++) {
@@ -105,9 +114,21 @@ public class SLListener implements Listener {
         boolean allowvar = Permission.ADDSIGN.has(event.getPlayer());
         boolean showedDisallowMessage = false;
         final ArrayList<String> varnames = new ArrayList<String>();
+        final ToggledState canDetectChecked = new ToggledState();
         for (int i = 0; i < VirtualLines.LINE_COUNT; i++) {
             String varname = Variables.parseVariableName(event.getLine(i));
             if (varname != null) {
+                // Verify with event whether we can detect variables on it
+                if (canDetectChecked.set() && !SignVariablesDetectEvent.checkCanDetect(
+                        event.getBlock(), SignSide.sideChanged(event), event.getLines())
+                ) {
+                    suppressedSignChangeEvents.add(event);
+                    if (suppressedSignChangeEvents.size() == 1) {
+                        CommonUtil.nextTick(suppressedSignChangeEvents::clear);
+                    }
+                    return;
+                }
+
                 if (allowvar) {
                     varnames.add(varname);
                 } else {
@@ -194,9 +215,16 @@ public class SLListener implements Listener {
     }
 
     private void detectSignVariables(VirtualSign vsign, Sign sign, SignHandle signHandle, SignSide side) {
+        final ToggledState canDetectChecked = new ToggledState();
         for (int i = 0; i < VirtualLines.LINE_COUNT; i++) {
             String varname = Variables.parseVariableName(side.getLine(signHandle, i));
             if (varname != null) {
+                if (canDetectChecked.set() && !SignVariablesDetectEvent.checkCanDetect(
+                        vsign.getBlock(), side, side.getLines(signHandle))
+                ) {
+                    return;
+                }
+
                 Variable var = Variables.get(varname);
                 if (!var.addLocation(sign.getBlock(), side, i)) {
                     SignLink.plugin.log(Level.WARNING, "Failed to create a sign linking to variable '" + varname + "'!");
