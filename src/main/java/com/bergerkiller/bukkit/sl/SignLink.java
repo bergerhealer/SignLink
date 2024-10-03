@@ -93,6 +93,11 @@ public class SignLink extends PluginBase {
         plugin = this;
 
         this.register((Listener) this.listener);
+        if (Common.hasCapability("Common:SignEditTextEvent")) {
+            this.register(new SLListenerSignEditBKCL(this.listener));
+        } else {
+            this.register(new SLListenerSignEditLegacy(this.listener));
+        }
         this.register(new SLBlockStateChangeListener(), PacketBlockStateChangeListener.LISTENED_TYPES);
         this.register("togglesignupdate", "reloadsignlink", "variable");
 

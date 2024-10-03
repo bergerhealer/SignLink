@@ -15,6 +15,7 @@ import com.bergerkiller.bukkit.sl.API.events.SignVariablesDetectEvent;
 import com.bergerkiller.generated.org.bukkit.block.SignHandle;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.Sign;
 import org.bukkit.entity.Player;
@@ -23,7 +24,6 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
-import org.bukkit.event.block.SignChangeEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -78,53 +78,39 @@ public class SLListener implements Listener {
         }
     }
 
-    private final List<SignChangeEvent> suppressedSignChangeEvents = new ArrayList<>();
+    private final List<Object> suppressedSignTextChangeTags = new ArrayList<>();
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onSignChangeMonitor(SignChangeEvent event) {
-        // If previously suppressed, don't detect variables on it for real
-        if (suppressedSignChangeEvents.remove(event)) {
-            return;
-        }
-
-        // Detect variables on the sign and add lines that have them
-        SignSide side = SignSide.sideChanged(event);
-        for (int i = 0; i < VirtualLines.LINE_COUNT; i++) {
-            String varname = Variables.parseVariableName(event.getLine(i));
-            if (varname != null) {
-                Variable var = Variables.get(varname);
-                if (!var.addLocation(event.getBlock(), side, i)) {
-                    event.getPlayer().sendMessage(ChatColor.RED + "Failed to create a sign linking to variable '" + varname + "'!");
-                }
-            }
-        }
-
-        // Update sign order and other information the next tick (after this sign is placed)
-        VirtualSign.updateSign(event.getBlock(), SignSide.sideChanged(event), event.getLines());
-    }
-
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    public void onSignChange(final SignChangeEvent event) {
+    /**
+     * Handles when a sign is edited by a player. Censors variables if the player lacks permission,
+     * and also handles suppressing variables on signs if needed.
+     *
+     * @param tag Unique tag for tracking suppressed signs. Just pass the event object here.
+     * @param player Player
+     * @param signBlock Block of the Sign
+     * @param signSide Side of the Sign that was edited
+     * @param lines Gets or sets the lines of the Sign Side being edited
+     */
+    public void handleSignTextChange(Object tag, Player player, Block signBlock, SignSide signSide, SignEventLineAccessor lines) {
         //Convert colors
         for (int i = 0; i < VirtualLines.LINE_COUNT; i++) {
-            event.setLine(i, StringUtil.ampToColor(event.getLine(i)));
+            lines.setLine(i, StringUtil.ampToColor(lines.getLine(i)));
         }
-    
+
         //General stuff...
-        boolean allowvar = Permission.ADDSIGN.has(event.getPlayer());
+        boolean allowvar = Permission.ADDSIGN.has(player);
         boolean showedDisallowMessage = false;
         final ArrayList<String> varnames = new ArrayList<String>();
         final ToggledState canDetectChecked = new ToggledState();
         for (int i = 0; i < VirtualLines.LINE_COUNT; i++) {
-            String varname = Variables.parseVariableName(event.getLine(i));
+            String varname = Variables.parseVariableName(lines.getLine(i));
             if (varname != null) {
                 // Verify with event whether we can detect variables on it
                 if (canDetectChecked.set() && !SignVariablesDetectEvent.checkCanDetect(
-                        event.getBlock(), SignSide.sideChanged(event), event.getLines())
+                        signBlock, signSide, lines.getAllLines())
                 ) {
-                    suppressedSignChangeEvents.add(event);
-                    if (suppressedSignChangeEvents.size() == 1) {
-                        CommonUtil.nextTick(suppressedSignChangeEvents::clear);
+                    suppressedSignTextChangeTags.add(tag);
+                    if (suppressedSignTextChangeTags.size() == 1) {
+                        CommonUtil.nextTick(suppressedSignTextChangeTags::clear);
                     }
                     return;
                 }
@@ -134,9 +120,9 @@ public class SLListener implements Listener {
                 } else {
                     if (!showedDisallowMessage) {
                         showedDisallowMessage = true;
-                        event.getPlayer().sendMessage(ChatColor.RED + "Failed to create a sign linking to variable '" + varname + "'!");
+                        player.sendMessage(ChatColor.RED + "Failed to create a sign linking to variable '" + varname + "'!");
                     }
-                    event.setLine(i, event.getLine(i).replace('%', ' '));
+                    lines.setLine(i, lines.getLine(i).replace('%', ' '));
                 }
             }
         }
@@ -151,7 +137,50 @@ public class SLListener implements Listener {
         } else {
             message.append("variables: ").yellow(StringUtil.join(" ", varnames));
         }
-        message.send(event.getPlayer());
+        message.send(player);
+    }
+
+    /**
+     * If the sign change is not cancelled, shows a success message to the Player about using variables on the sign
+     *
+     * @param tag Unique tag for tracking suppressed signs. Just pass the event object here.
+     * @param player Player
+     * @param signBlock Block of the Sign
+     * @param signSide Side of the Sign that was edited
+     * @param lines Gets or sets the lines of the Sign Side being edited
+     */
+    public void handleSignTextChangeMonitor(Object tag, Player player, Block signBlock, SignSide signSide, SignEventLineAccessor lines) {
+        // If previously suppressed, don't detect variables on it for real
+        if (suppressedSignTextChangeTags.remove(tag)) {
+            return;
+        }
+
+        // Detect variables on the sign and add lines that have them
+        for (int i = 0; i < VirtualLines.LINE_COUNT; i++) {
+            String varname = Variables.parseVariableName(lines.getLine(i));
+            if (varname != null) {
+                Variable var = Variables.get(varname);
+                if (!var.addLocation(signBlock, signSide, i)) {
+                    player.sendMessage(ChatColor.RED + "Failed to create a sign linking to variable '" + varname + "'!");
+                }
+            }
+        }
+
+        // Update sign order and other information the next tick (after this sign is placed)
+        VirtualSign.updateSign(signBlock, signSide, lines.getAllLines());
+    }
+
+    public interface SignEventLineAccessor {
+        String getLine(int index);
+        void setLine(int index, String text);
+
+        default String[] getAllLines() {
+            String[] lines = new String[VirtualLines.LINE_COUNT];
+            for (int i = 0; i < VirtualLines.LINE_COUNT; i++) {
+                lines[i] = getLine(i);
+            }
+            return lines;
+        }
     }
 
     @EventHandler(priority=EventPriority.MONITOR, ignoreCancelled=true)
