@@ -1,21 +1,16 @@
 package com.bergerkiller.bukkit.sl;
 
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
-import com.bergerkiller.bukkit.common.Common;
 import com.bergerkiller.bukkit.common.internal.CommonCapabilities;
 import com.bergerkiller.bukkit.common.utils.ChunkUtil;
 import com.bergerkiller.bukkit.common.utils.LogicUtil;
 import com.bergerkiller.bukkit.sl.API.events.SignVariablesDetectEvent;
-import com.bergerkiller.generated.net.minecraft.server.level.PlayerChunkHandle;
-import com.bergerkiller.generated.net.minecraft.server.level.WorldServerHandle;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Block;
@@ -450,7 +445,7 @@ public class VirtualSign extends VirtualSignStore {
         for (int i = 0; i < 4; i++) {
             final VirtualLines.Line oldLine = oldLines.getLine(i);
             final VirtualLines.Line newLine = newLines.getLine(i);
-            if (oldLine.toJson().equals(newLine.toJson())) {
+            if (oldLine.toNBT().equals(newLine.toNBT())) {
                 continue; // Unchanged
             }
 
@@ -496,29 +491,9 @@ public class VirtualSign extends VirtualSignStore {
         return true;
     }
 
-    // This is a wrap around bkcl api added in 1.20.4-v3
-    private static final ChunkViewersGetter CHUNK_VIEWERS_GETTER = findChunkViewersGetter();
-    private static ChunkViewersGetter findChunkViewersGetter() {
-        if (Common.hasCapability("Common:ChunkUtil:getChunkViewers")) {
-            return ChunkUtil::getChunkViewers;
-        } else {
-            return (world, chunkX, chunkZ) -> {
-                PlayerChunkHandle pc = WorldServerHandle.fromBukkit(world).getPlayerChunkMap().getVisibleChunk(chunkX, chunkZ);
-                if (pc == null || pc.getChunkIfLoaded() == null) {
-                    return Collections.emptyList();
-                } else {
-                    return pc.getPlayers();
-                }
-            };
-        }
-    }
-    interface ChunkViewersGetter {
-        Collection<Player> get(World world, int chunkX, int chunkZ);
-    }
-
     public void forPlayersInRange(Consumer<Player> action) {
         // Filter result of getChunkViewers()
-        for (Player viewer : CHUNK_VIEWERS_GETTER.get(getWorld(), getChunkX(), getChunkZ())) {
+        for (Player viewer : ChunkUtil.getChunkViewers(getWorld(), getChunkX(), getChunkZ())) {
             if (EntityUtil.isNearBlock(viewer, this.getX(), this.getZ(), 60)) {
                 action.accept(viewer);
             }

@@ -1,15 +1,13 @@
 package com.bergerkiller.bukkit.sl;
 
-import com.bergerkiller.bukkit.common.Common;
 import com.bergerkiller.bukkit.common.block.SignChangeTracker;
 import com.bergerkiller.bukkit.common.block.SignSide;
 import com.bergerkiller.bukkit.common.block.SignSideMap;
 import com.bergerkiller.bukkit.common.internal.CommonCapabilities;
+import com.bergerkiller.bukkit.common.nbt.CommonTag;
 import com.bergerkiller.bukkit.common.nbt.CommonTagCompound;
 import com.bergerkiller.bukkit.common.nbt.CommonTagList;
 import com.bergerkiller.bukkit.common.wrappers.ChatText;
-import com.bergerkiller.generated.net.minecraft.world.level.block.entity.TileEntitySignHandle;
-import com.bergerkiller.mountiplex.reflection.util.FastField;
 
 import java.util.function.Supplier;
 import java.util.logging.Level;
@@ -53,7 +51,7 @@ public class VirtualLines {
 
             for (int i = 0; i < VirtualLines.LINE_COUNT; i++) {
                 Line line = frontLines.getLine(i);
-                if (!line.sameAsSign && !line.toJson().equals(metadata.getValue(SIGN_META_LINE_KEYS_PRE_1_20[i], ""))) {
+                if (!line.sameAsSign && !line.toNBT().equals(metadata.get(SIGN_META_LINE_KEYS_PRE_1_20[i]))) {
                     return true;
                 }
             }
@@ -76,7 +74,7 @@ public class VirtualLines {
             for (int i = 0; i < VirtualLines.LINE_COUNT; i++) {
                 Line line = frontLines.getLine(i);
                 if (!line.sameAsSign) {
-                    metadata.putValue(SIGN_META_LINE_KEYS_PRE_1_20[i], line.toJson());
+                    metadata.put(SIGN_META_LINE_KEYS_PRE_1_20[i], line.toNBT());
                 }
             }
         }
@@ -146,34 +144,34 @@ public class VirtualLines {
 
         public final String text;
         public final boolean sameAsSign;
-        private volatile String cachedJson;
-        private volatile Supplier<String> toJsonFunc;
+        private volatile CommonTag cachedNBT;
+        private volatile Supplier<CommonTag> toNBTFunc;
 
-        public String toJson() {
-            String json;
-            if ((json = cachedJson) == null) {
+        public CommonTag toNBT() {
+            CommonTag nbt;
+            if ((nbt = cachedNBT) == null) {
                 // Extra async guard. Json func is set to null once initialized. So recheck.
-                Supplier<String> toJsonFunc = this.toJsonFunc;
-                if ((json = cachedJson) == null) {
-                    cachedJson = json = toJsonFunc.get();
-                    toJsonFunc = null;
+                Supplier<CommonTag> toNBTFunc = this.toNBTFunc;
+                if ((nbt = cachedNBT) == null) {
+                    cachedNBT = nbt = toNBTFunc.get();
+                    this.toNBTFunc = null;
                 }
             }
-            return json;
+            return nbt;
         }
 
         public Line(ChatText text, boolean sameAsSign) {
-            this(text.getMessage(), sameAsSign, text::getJson);
+            this(text.getMessage(), sameAsSign, text::getNBT);
         }
 
         public Line(String text, boolean sameAsSign) {
-            this(text, sameAsSign, () -> ChatText.fromMessage(text).getJson());
+            this(text, sameAsSign, () -> ChatText.fromMessage(text).getNBT());
         }
 
-        private Line(String text, boolean sameAsSign, Supplier<String> toJsonFunc) {
+        private Line(String text, boolean sameAsSign, Supplier<CommonTag> toNBTFunc) {
             this.text = text;
             this.sameAsSign = sameAsSign;
-            this.toJsonFunc = toJsonFunc;
+            this.toNBTFunc = toNBTFunc;
         }
     }
 
@@ -240,7 +238,7 @@ public class VirtualLines {
 
         public boolean setLine(int index, Line line) {
             Line prevLine = this.lines[index];
-            boolean changed = !prevLine.toJson().equals(line.toJson());
+            boolean changed = !prevLine.toNBT().equals(line.toNBT());
             this.lines[index] = line;
             this.textLines[index] = line.text;
 
@@ -310,7 +308,7 @@ public class VirtualLines {
 
             for (int i = 0; i < VirtualLines.LINE_COUNT; i++) {
                 Line line = getLine(i);
-                if (!line.sameAsSign && !line.toJson().equals(messages.getValue(i, ""))) {
+                if (!line.sameAsSign && !line.toNBT().equals(messages.get(i))) {
                     return true;
                 }
             }
@@ -337,14 +335,14 @@ public class VirtualLines {
                 for (int i = 0; i < VirtualLines.LINE_COUNT; i++) {
                     Line line = getLine(i);
                     if (!line.sameAsSign) {
-                        messages.setValue(i, line.toJson());
+                        messages.set(i, line.toNBT());
                     }
                 }
             } else {
                 // Clear and re-add
                 messages.clear();
                 for (int i = 0; i < VirtualLines.LINE_COUNT; i++) {
-                    messages.addValue(getLine(i).toJson());
+                    messages.add(getLine(i).toNBT());
                 }
             }
         }
@@ -368,11 +366,7 @@ public class VirtualLines {
 
         private static SignTextGetter createSignTextGetter() {
             try {
-                if (Common.hasCapability("Common:SignChangeTracker:FormattedText")) {
-                    return new ModernSignTextGetter();
-                } else {
-                    return new LegacySignTextGetter();
-                }
+                return new ModernSignTextGetter();
             } catch (Throwable t) {
                 SignLink.plugin.getLogger().log(Level.SEVERE, "Failed to identify suitable sign text getter, using fallback", t);
                 return new FallbackSignTextGetter();
@@ -390,7 +384,7 @@ public class VirtualLines {
                 Line[] lines = new Line[textLines.length];
                 for (int i = 0; i < textLines.length; i++) {
                     final ChatText formattedLine = formattedLines[i];
-                    lines[i] = new Line(textLines[i], true, formattedLine::getJson);
+                    lines[i] = new Line(textLines[i], true, formattedLine::getNBT);
                 }
                 return new SignSideLines(lines, textLines, true);
             }
@@ -404,41 +398,6 @@ public class VirtualLines {
             public SignSideLines getBackLines(SignChangeTracker tracker) {
                 if (CommonCapabilities.HAS_SIGN_BACK_TEXT) {
                     return createLines(tracker.getBackLines(), tracker.getFormattedBackLines());
-                } else {
-                    return UNSUPPORTED;
-                }
-            }
-        }
-
-        private static class LegacySignTextGetter implements SignTextGetter {
-            private final FastField<TileEntitySignHandle> trackerTileEntityField = new FastField<>();
-
-            public LegacySignTextGetter() throws Throwable {
-                trackerTileEntityField.init(SignChangeTracker.class.getDeclaredField("tileEntity"));
-            }
-
-            public static SignSideLines createLines(String[] textLines, Object[] rawLines) {
-                if (rawLines == null) {
-                    return new SignSideLines(textLines);
-                }
-
-                Line[] lines = new Line[textLines.length];
-                for (int i = 0; i < textLines.length; i++) {
-                    final Object rawLine = rawLines[i];
-                    lines[i] = new Line(textLines[i], true, () -> ChatText.fromComponent(rawLine).getJson());
-                }
-                return new SignSideLines(lines, textLines, true);
-            }
-
-            @Override
-            public SignSideLines getFrontLines(SignChangeTracker tracker) {
-                return createLines(tracker.getFrontLines(), trackerTileEntityField.get(tracker).getRawFrontLines());
-            }
-
-            @Override
-            public SignSideLines getBackLines(SignChangeTracker tracker) {
-                if (CommonCapabilities.HAS_SIGN_BACK_TEXT) {
-                    return createLines(tracker.getBackLines(), trackerTileEntityField.get(tracker).getRawBackLines());
                 } else {
                     return UNSUPPORTED;
                 }

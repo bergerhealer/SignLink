@@ -92,12 +92,12 @@ public class SignLink extends PluginBase {
     public void enable() {
         plugin = this;
 
-        this.register((Listener) this.listener);
-        if (Common.hasCapability("Common:SignEditTextEvent")) {
-            this.register(new SLListenerSignEditBKCL(this.listener));
-        } else {
-            this.register(new SLListenerSignEditLegacy(this.listener));
+        if (!Common.hasCapability("Common:NBT:ChatTextSerialization")) {
+            throw new IllegalStateException("BKCommonLib is too old for this version of SignLink. Please update BKCommonLib! (must be 1.21.5-v1 build #1860 or newer)");
         }
+
+        this.register((Listener) this.listener);
+        this.register(new SLListenerSignEditBKCL(this.listener));
         this.register(new SLBlockStateChangeListener(), PacketBlockStateChangeListener.LISTENED_TYPES);
         this.register("togglesignupdate", "reloadsignlink", "variable");
 

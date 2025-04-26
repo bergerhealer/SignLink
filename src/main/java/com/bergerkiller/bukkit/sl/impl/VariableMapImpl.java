@@ -1,19 +1,15 @@
 package com.bergerkiller.bukkit.sl.impl;
 
-import com.bergerkiller.bukkit.common.Common;
 import com.bergerkiller.bukkit.common.config.ConfigurationNode;
 import com.bergerkiller.bukkit.common.config.FileConfiguration;
 import com.bergerkiller.bukkit.common.config.yaml.YamlPath;
 import com.bergerkiller.bukkit.sl.API.PlayerVariable;
 import com.bergerkiller.bukkit.sl.API.Variable;
 import com.bergerkiller.bukkit.sl.SignLink;
-import com.bergerkiller.mountiplex.MountiplexUtil;
 
-import java.lang.reflect.Constructor;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.function.Function;
 
 /**
  * The actual implementation as used by SignLink on the server.
@@ -97,35 +93,8 @@ public class VariableMapImpl extends VariableMap {
         values.save();
     }
 
-    // This crap is needed so that variable names with '.' in it can't break everything
-    private static final Function<String, YamlPath> createVarPath = findCreateVarPathFunc();
-    private static Function<String, YamlPath> findCreateVarPathFunc() {
-        try {
-            if (Common.hasCapability("Common:Yaml:ChildWithLiteralName")) {
-                // New API for this
-                return getCreateVarPathNewApi();
-            } else {
-                // Old BKCL fallback
-                Constructor<YamlPath> ctor = YamlPath.class.getDeclaredConstructor(YamlPath.class, String.class);
-                ctor.setAccessible(true);
-                return name -> {
-                    try {
-                         return ctor.newInstance(YamlPath.ROOT, name);
-                    } catch (Throwable t) {
-                        throw MountiplexUtil.uncheckedRethrow(t);
-                    }
-                };
-            }
-        } catch (Throwable t) {
-            return s -> { throw new RuntimeException(t); };
-        }
-    }
-    private static Function<String, YamlPath> getCreateVarPathNewApi() {
-        return YamlPath.ROOT::childWithName;
-    }
-
     private void saveVariable(Variable variable) {
-        ConfigurationNode node = values.getNode(createVarPath.apply(variable.getName()));
+        ConfigurationNode node = values.getNode(YamlPath.ROOT.childWithName(variable.getName()));
 
         node.set("value", variable.getDefault());
         variable.getDefaultTicker().save(node);
